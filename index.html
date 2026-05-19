@@ -4,27 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Daily Support Dashboard — DaMENSCH</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js">
-
-window.__forcePureBotKPIs = function(botCSAT, botDSAT){
-  const csatNode = document.getElementById('bot-csat');
-  const dsatNode = document.getElementById('bot-dsat');
-
-  if(csatNode){
-    csatNode.innerHTML = botCSAT;
-    csatNode.textContent = botCSAT;
-  }
-
-  if(dsatNode){
-    dsatNode.innerHTML = botDSAT;
-    dsatNode.textContent = botDSAT;
-  }
-
-  console.log('PURE BOT KPI APPLIED', botCSAT, botDSAT);
-};
-
-
-</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -131,7 +111,6 @@ select{padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:11px
   <div class="tab" onclick="showTab('transfers',this)">Transfers</div>
   <div class="tab" onclick="showTab('csat',this)">CSAT & DSAT</div>
   <div class="tab" onclick="showTab('roster',this)">&#128197; Roster</div>
-<div class="tab" onclick="showTab('bot',this)">🤖 AI Bot</div>
 </div>
 
 <div class="content">
@@ -282,79 +261,28 @@ select{padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:11px
 
 <!-- REPEAT -->
 <div id="panel-repeat" class="panel">
-  <div class="info">True Repeat = same customer + same disposition. Multi-issue customers are tracked separately and do NOT count as repeat failure.</div>
-
   <div class="kpi-row" id="kpi-repeat" style="grid-template-columns:repeat(4,1fr)"></div>
-
   <div class="grid2">
-    <div class="card">
-      <h3>Repeat by Disposition</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Disposition</th>
-            <th>Total Contacts</th>
-            <th>True Repeat</th>
-            <th>Repeat %</th>
-          </tr>
-        </thead>
-        <tbody id="repeat-disposition-tbody"></tbody>
-      </table>
+    <div class="card"><h3>Repeat % by agent</h3>
+      <table><thead><tr><th>Agent</th><th>Chats</th><th>Repeat</th><th>Repeat %</th><th>Flag</th></tr></thead>
+      <tbody id="repeat-tbody"></tbody></table>
     </div>
-
-    <div class="card">
-      <h3>Weekly Repeat Intelligence</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Day</th>
-            <th>Total Chats</th>
-            <th>Repeat Chats</th>
-            <th>Same Issue</th>
-            <th>Different Issue</th>
-            <th>Repeat %</th>
-          </tr>
-        </thead>
-        <tbody id="repeat-daily-tbody"></tbody>
-      </table>
-    </div>
+    <div class="card"><h3>Contact frequency</h3><div class="ch240"><canvas id="c-freq"></canvas></div></div>
   </div>
-
-  <div class="grid2">
-    <div class="card">
-      <h3>Repeat % by Agent</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Agent</th>
-            <th>Chats</th>
-            <th>Repeat</th>
-            <th>Repeat %</th>
-            <th>Flag</th>
-          </tr>
-        </thead>
-        <tbody id="repeat-tbody"></tbody>
-      </table>
-    </div>
-
-    <div class="card">
-      <h3>Multi-Issue Customers</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Customer</th>
-            <th>Contacts</th>
-            <th>Unique Issues</th>
-          </tr>
-        </thead>
-        <tbody id="multi-issue-tbody"></tbody>
-      </table>
-    </div>
-  </div>
-
   <div class="card">
-    <h3>Contact Frequency</h3>
-    <div class="ch240"><canvas id="c-freq"></canvas></div>
+    <h3>Repeat by disposition</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Disposition</th>
+          <th>Total</th>
+          <th>Daily Repeat</th>
+          <th>Weekly Repeat</th>
+          <th>Weekly Repeat %</th>
+        </tr>
+      </thead>
+      <tbody id="repeat-disp-tbody"></tbody>
+    </table>
   </div>
 </div>
 
@@ -428,101 +356,6 @@ select{padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:11px
   <div class="card"><h3>Agent coverage heatmap</h3><div class="ch320"><canvas id="c-heatmap"></canvas></div></div>
 </div>
 
-
-<div id="panel-bot" class="panel">
-  <div class="info">AI Bot Intelligence powered by Ticket All data.</div>
-  <div class="kpi-row" id="kpi-bot"></div>
-
-  
-  <div class="grid2">
-    <div class="card">
-      <h3>Agent vs Bot Survey Trend — Last 7 Days</h3>
-      <div class="ch240"><canvas id="c-bot-survey-trend"></canvas></div>
-    </div>
-
-    <div class="card">
-      <h3>Bot Survey Intelligence</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Metric</th>
-            <th>Value</th>
-          </tr>
-        </thead>
-        <tbody id="bot-survey-summary"></tbody>
-      </table>
-    </div>
-  </div>
-
-  
-  <div class="card">
-    <h3>Day Wise Agent vs Bot CSAT / DSAT</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Agent CSAT</th>
-          <th>Agent DSAT</th>
-          <th>Bot CSAT</th>
-          <th>Bot DSAT</th>
-        </tr>
-      </thead>
-      <tbody id="daily-survey-table"></tbody>
-    </table>
-  </div>
-
-
-  <div class="card">
-    <h3>Bot Metrics</h3>
-    <div class="ch240"><canvas id="c-bot"></canvas></div>
-  </div>
-
-  <div class="card">
-    <h3>AI Escalation by Disposition</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Disposition</th>
-          <th>AI Attempted</th>
-          <th>Escalated</th>
-          <th>True Bot</th>
-          <th>Leakage %</th>
-        </tr>
-      </thead>
-      <tbody id="bot-pivot"></tbody>
-    </table>
-  </div>
-
-  
-  <div class="card">
-    <h3>Bot-only DSAT by Disposition</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Disposition</th>
-          <th>DSAT</th>
-        </tr>
-      </thead>
-      <tbody id="bot-dsat"></tbody>
-    </table>
-  </div>
-
-
-  <div class="card">
-    <h3>RCA Tickets</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Ticket</th>
-          <th>Disposition</th>
-          <th>Assigned</th>
-        </tr>
-      </thead>
-      <tbody id="bot-rca"></tbody>
-    </table>
-  </div>
-</div>
-
 </div>
 
 <script>
@@ -577,19 +410,6 @@ function parseMMSS(s){
   try{if(p.length>=2)return days*1440+ +p[0]+ +p[1]/60;}catch(e){}
   const n=parseFloat(s);return(!isNaN(n)&&n>=0&&n<1440)?n:null;
 }
-
-function isPureBot(row){
-  const ai = String(
-    row['Resolved by AI'] ||
-    row['AI Resolved'] ||
-    row['resolved by ai'] ||
-    ''
-  ).trim().toLowerCase();
-
-  return ai === 'yes' || ai === 'true';
-}
-
-
 function getCSAT(r){
   // Check all possible CSAT column names
   const keys=['CSAT Rating','CSAT rating','csat rating','csat_rating','CSAT','Csat Rating','CSAT Score','csat score','Csat','Rating','csat'];
@@ -636,9 +456,35 @@ function buildData(aaRows, tktRows){
   AGENTS.forEach(a=>agC(a));
 
   const phoneFreq={},orderFreq={};
+  const dailyRepeatMap={},weeklyRepeatMap={};
   wa.forEach(r=>{
     const p=String(r['Customer Phone']||'').replace(/\D/g,'').slice(-10);if(p)phoneFreq[p]=(phoneFreq[p]||0)+1;
     const o=String(r['Order Name']||'');if(o&&o!=='-'&&o!=='nan')orderFreq[o]=(orderFreq[o]||0)+1;
+  });
+
+  // Build repeat maps using phone + disposition + day/week
+  wa.forEach(r=>{
+    const start=parseDT(r['Started At']);
+    const ticketId=String(r['Ticket ID']||'').replace('#','').trim();
+    const bestTkt=tktById[ticketId]||null;
+    const disposition=bestTkt?String(bestTkt['Disposition: L2 Disposition']||'').trim():'';
+    const phone=String(r['Customer Phone']||'').replace(/\D/g,'').slice(-10);
+
+    if(!start || !phone || !disposition) return;
+
+    const dateKey=start.toISOString().split('T')[0];
+
+    const firstDay=new Date(start.getFullYear(),0,1);
+    const pastDays=Math.floor((start-firstDay)/86400000);
+    const weekNo=Math.ceil((pastDays+firstDay.getDay()+1)/7);
+
+    const weekKey=`${start.getFullYear()}-${weekNo}`;
+
+    const dailyKey=`${phone}_${disposition}_${dateKey}`;
+    const weeklyKey=`${phone}_${disposition}_${weekKey}`;
+
+    dailyRepeatMap[dailyKey]=(dailyRepeatMap[dailyKey]||0)+1;
+    weeklyRepeatMap[weeklyKey]=(weeklyRepeatMap[weeklyKey]||0)+1;
   });
 
   // Process AA rows
@@ -673,7 +519,23 @@ function buildData(aaRows, tktRows){
       hour:start?start.getHours():null,
       dow:start?start.getDay():null,
       startDT:start,endDT:end,
-      isRepeat:phoneFreq[phone]>1?1:0,
+
+      dailyRepeat:(()=>{
+        if(!start||!phone||!disposition)return 0;
+        const dateKey=start.toISOString().split('T')[0];
+        const dailyKey=`${phone}_${disposition}_${dateKey}`;
+        return dailyRepeatMap[dailyKey]>1?1:0;
+      })(),
+      weeklyRepeat:(()=>{
+        if(!start||!phone||!disposition)return 0;
+        const firstDay=new Date(start.getFullYear(),0,1);
+        const pastDays=Math.floor((start-firstDay)/86400000);
+        const weekNo=Math.ceil((pastDays+firstDay.getDay()+1)/7);
+        const weekKey=`${start.getFullYear()}-${weekNo}`;
+        const weeklyKey=`${phone}_${disposition}_${weekKey}`;
+        return weeklyRepeatMap[weeklyKey]>1?1:0;
+      })(),
+
       ticketId:r['Ticket ID']||'',
       frMin:parseMMSS(r['First Response Duration (mm:ss)']),
       activeMin:parseMMSS(r['Active Time (mm:ss)']),
@@ -702,7 +564,7 @@ function buildData(aaRows, tktRows){
     return r;
   });
 
-  return{wa:deduped,AGENTS,phoneFreq,orderFreq,numDays,tktRows};
+  return{wa:deduped,AGENTS,phoneFreq,orderFreq,numDays};
 }
 
 // ─── EFFICIENCY SCORE ─────────────────────────────────────────────────────────
@@ -733,7 +595,7 @@ function calcScore(agent,wa,teamMed,teamFR,hasCsat){
 function renderAll(){
   renderTab('summary');
   const t=document.querySelector('.tab.active').textContent.toLowerCase().replace(/[^\w]/g,'');
-  const m={summary:'summary',resolution:'resolution',agents:'agents',efficiency:'efficiency',sla:'sla',hourlyload:'hourly',fcr:'fcr',repeat:'repeat',orders:'orders',transfers:'transfers',csatdsat:'csat',roster:'roster',bot:'bot'};
+  const m={summary:'summary',resolution:'resolution',agents:'agents',efficiency:'efficiency',sla:'sla',hourlyload:'hourly',fcr:'fcr',repeat:'repeat',orders:'orders',transfers:'transfers',csatdsat:'csat',roster:'roster'};
   renderTab(m[t]||'summary');
 }
 
@@ -749,382 +611,7 @@ function renderTab(name){
   const teamFR=avg(wa.map(r=>r.frMin).filter(v=>v!==null&&v>=0&&v<60))||1;
   const hasCsat=wa.some(r=>r.csat!==null);
 
-  
-if(name==='bot'){
-  const allTkt = G.tktRows || [];
-
-  const aiRows = allTkt.filter(r=>{
-    const ai = String(
-      r['Resolved by AI'] ||
-      r['Auto Resolved'] ||
-      r['AI Resolved'] ||
-      ''
-    ).toLowerCase().trim();
-
-    return ai === 'yes' || ai === 'true';
-  });
-
-  const agentTickets = new Set(
-    wa.map(r => String(r.ticketId || '').replace('#','').trim())
-  );
-
-  const leakageRows = aiRows.filter(r=>{
-    const id = String(
-      r['Ticket Number'] ||
-      r['Ticket ID'] ||
-      ''
-    ).replace('#','').trim();
-
-    return agentTickets.has(id);
-  });
-
-  const trueBotRows = aiRows.filter(r=>{
-    const id = String(
-      r['Ticket Number'] ||
-      r['Ticket ID'] ||
-      ''
-    ).replace('#','').trim();
-
-    return !agentTickets.has(id);
-  });
-
-  const trueBot = trueBotRows.length;
-
-  // PURE BOT SURVEYS ONLY
-  const botRated = trueBotRows.filter(r => getCSAT(r) !== null);
-
-  const botCSAT = botRated.filter(r => getCSAT(r) >= 4).length;
-  const botDSAT = botRated.filter(r => getCSAT(r) <= 3).length;
-
-  const leakagePct = aiRows.length
-    ? ((leakageRows.length / aiRows.length) * 100).toFixed(1)
-    : 0;
-
-  document.getElementById('kpi-bot').innerHTML = [
-    {l:'AI Attempted',v:aiRows.length,c:'blue'},
-    {l:'Human Assisted',v:leakageRows.length,c:'amber'},
-    {l:'True Bot Closed',v:trueBot,c:'green'},
-    {l:'Leakage %',v:leakagePct+'%',c:'red'},
-    {l:'Bot CSAT',v:botCSAT,c:'green'},
-    {l:'Bot DSAT',v:botDSAT,c:'red'}
-  ].map(k=>`<div class="kpi ${k.c}">
-      <div class="lbl">${k.l}</div>
-      <div class="val">${k.v}</div>
-    </div>`).join('');
-
-  const pivot = {};
-
-  aiRows.forEach(r=>{
-    const disp = String(
-      r['Disposition: L2 Disposition'] ||
-      r['Disposition'] ||
-      'Unknown'
-    ).trim();
-
-    const id = String(
-      r['Ticket Number'] ||
-      r['Ticket ID'] ||
-      ''
-    ).replace('#','').trim();
-
-    if(!pivot[disp]){
-      pivot[disp] = {
-        attempted:0,
-        escalated:0
-      };
-    }
-
-    pivot[disp].attempted++;
-
-    if(agentTickets.has(id)){
-      pivot[disp].escalated++;
-    }
-  });
-
-  
-  // BOT ONLY DSAT BY DISPOSITION
-  const dsatDisp = {};
-
-  botRated
-    .filter(r => getCSAT(r) <= 3)
-    .forEach(r=>{
-      const disp = String(
-        r['Disposition: L2 Disposition'] ||
-        r['Disposition'] ||
-        'Unknown'
-      ).trim();
-
-      dsatDisp[disp] = (dsatDisp[disp] || 0) + 1;
-    });
-
-  const dsatHtml = Object.entries(dsatDisp)
-    .sort((a,b)=>b[1]-a[1])
-    .map(([d,v])=>`
-      <tr>
-        <td><strong>${d}</strong></td>
-        <td style="color:#dc2626;font-weight:700">${v}</td>
-      </tr>
-    `).join('');
-
-  if(document.getElementById('bot-dsat')){
-    document.getElementById('bot-dsat').innerHTML = dsatHtml;
-  }
-
-
-
-document.getElementById('bot-pivot').innerHTML =
-    Object.entries(pivot)
-    .sort((a,b)=>b[1].attempted-a[1].attempted)
-    .map(([d,v])=>{
-      const tb = v.attempted - v.escalated;
-      const lp = v.attempted
-        ? ((v.escalated/v.attempted)*100).toFixed(1)
-        : 0;
-
-      return `<tr>
-        <td><strong>${d}</strong></td>
-        <td>${v.attempted}</td>
-        <td style="color:#dc2626;font-weight:700">${v.escalated}</td>
-        <td style="color:#16a34a;font-weight:700">${tb}</td>
-        <td>${lp}%</td>
-      </tr>`;
-    }).join('');
-
-  
-  // --- BOT SURVEY TREND ---
-  const dailyTrend = {};
-
-  allTkt.forEach(r=>{
-    const dt = parseDT(r['Created At'] || r['Updated At'] || r['Resolved At']);
-    if(!dt) return;
-
-    const d = dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
-
-    if(!dailyTrend[d]){
-      dailyTrend[d]={agent:0,bot:0};
-    }
-
-    const score = getCSAT(r);
-    if(score===null) return;
-
-    const ai = String(
-      r['Resolved by AI'] ||
-      r['AI Resolved'] ||
-      ''
-    ).toLowerCase().trim();
-
-    if(isPureBot(r)){
-      dailyTrend[d].bot++;
-    } else {
-      dailyTrend[d].agent++;
-    }
-  });
-
-  const trendDays = Object.keys(dailyTrend).slice(-7);
-
-  if(document.getElementById('bot-survey-summary')){
-    
-// removed broken KPI override call
-
-
-
-try{
-  const csatNode = document.getElementById('bot-csat');
-  const dsatNode = document.getElementById('bot-dsat');
-
-  if(csatNode) csatNode.textContent = botCSAT;
-  if(dsatNode) dsatNode.textContent = botDSAT;
-}catch(e){
-  console.error('Bot KPI patch failed', e);
-}
-
-
-
-try {
-  const botCsatCard = document.getElementById('bot-csat');
-  const botDsatCard = document.getElementById('bot-dsat');
-
-  if(botCsatCard){
-    botCsatCard.innerHTML = botCSAT;
-    botCsatCard.textContent = botCSAT;
-  }
-
-  if(botDsatCard){
-    botDsatCard.innerHTML = botDSAT;
-    botDsatCard.textContent = botDSAT;
-  }
-
-  console.log('PURE BOT KPI CARDS FIXED', botCSAT, botDSAT);
-} catch(e){
-  console.error('PURE BOT KPI FIX FAILED', e);
-}
-
-
-
-try{
-  let pureBotCSAT = 0;
-  let pureBotDSAT = 0;
-
-  allTkt.forEach(r=>{
-    const score = getCSAT(r);
-
-    if(score===null) return;
-
-    if(isPureBot(r)){
-      if(score >= 4){
-        pureBotCSAT++;
-      } else {
-        pureBotDSAT++;
-      }
-    }
-  });
-
-  const csatNode = document.getElementById('bot-csat');
-  const dsatNode = document.getElementById('bot-dsat');
-
-  if(csatNode) csatNode.textContent = pureBotCSAT;
-  if(dsatNode) dsatNode.textContent = pureBotDSAT;
-
-}catch(e){
-  console.error('Pure bot patch failed', e);
-}
-
-
-document.getElementById('bot-survey-summary').innerHTML = `
-      <tr><td><strong>Pure Bot CSAT</strong></td><td style="color:#16a34a;font-weight:700">${botCSAT}</td></tr>
-      <tr><td><strong>Pure Bot DSAT</strong></td><td style="color:#dc2626;font-weight:700">${botDSAT}</td></tr>
-      <tr><td><strong>Leakage %</strong></td><td>${leakagePct}%</td></tr>
-      <tr><td><strong>True Bot Closed</strong></td><td>${trueBot}</td></tr>
-    `;
-  }
-
-  
-  // --- DAY WISE SURVEY TABLE ---
-  const surveyDayMap = {};
-
-  allTkt.forEach(r=>{
-    const dt = parseDT(r['Created At'] || r['Updated At'] || r['Resolved At']);
-    if(!dt) return;
-
-    const day = dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
-
-    if(!surveyDayMap[day]){
-      surveyDayMap[day]={
-        agentCSAT:0,
-        agentDSAT:0,
-        botCSAT:0,
-        botDSAT:0
-      };
-    }
-
-    const score = getCSAT(r);
-    if(score===null) return;
-
-    const ai = String(
-      r['Resolved by AI'] ||
-      r['AI Resolved'] ||
-      ''
-    ).toLowerCase().trim();
-
-    if(isPureBot(r)){
-      if(score >= 4){
-        surveyDayMap[day].botCSAT++;
-      } else {
-        surveyDayMap[day].botDSAT++;
-      }
-    } else {
-      if(score >= 4){
-        surveyDayMap[day].agentCSAT++;
-      } else {
-        surveyDayMap[day].agentDSAT++;
-      }
-    }
-  });
-
-  const surveyDays = Object.keys(surveyDayMap).slice(-7);
-
-  if(document.getElementById('daily-survey-table')){
-    document.getElementById('daily-survey-table').innerHTML =
-      surveyDays.map(d=>`
-        <tr>
-          <td>${d}</td>
-          <td style="color:#16a34a;font-weight:700">${surveyDayMap[d].agentCSAT}</td>
-          <td style="color:#dc2626;font-weight:700">${surveyDayMap[d].agentDSAT}</td>
-          <td style="color:#16a34a;font-weight:700">${surveyDayMap[d].botCSAT}</td>
-          <td style="color:#dc2626;font-weight:700">${surveyDayMap[d].botDSAT}</td>
-        </tr>
-      `).join('');
-  }
-
-
-
-  
-try {
-
-  destroyC('c-bot-survey-trend');
-
-  CH['c-bot-survey-trend'] = new Chart(
-    document.getElementById('c-bot-survey-trend'),
-    {
-      type:'line',
-      data:{
-        labels:trendDays,
-        datasets:[
-          {
-            label:'Agent Surveys',
-            data:trendDays.map(d=>dailyTrend[d].agent),
-            borderColor:'#3b82f6',
-            backgroundColor:'rgba(59,130,246,.12)',
-            tension:.35,
-            fill:true
-          },
-          {
-            label:'Bot Surveys',
-            data:trendDays.map(d=>dailyTrend[d].bot),
-            borderColor:'#16a34a',
-            backgroundColor:'rgba(22,163,74,.12)',
-            tension:.35,
-            fill:true
-          }
-        ]
-      },
-      options:{
-        responsive:true,
-        maintainAspectRatio:false,
-        plugins:{legend:{position:'bottom'}},
-        scales:{y:{beginAtZero:true}}
-      }
-    }
-  );
-
-
-  
-
-  // FORCE MAIN BOT KPI TO USE PURE BOT SURVEYS ONLY
-  setTimeout(()=>{
-    const csatEl = document.getElementById('bot-csat');
-    const dsatEl = document.getElementById('bot-dsat');
-
-    if(csatEl) csatEl.textContent = botCSAT;
-    if(dsatEl) dsatEl.textContent = botDSAT;
-  },0);
-
-
-} catch(chartErr){
-  console.error('Bot chart render failed', chartErr);
-}
-
-document.getElementById('bot-rca').innerHTML =
-    leakageRows.slice(0,50).map(r=>`
-      <tr>
-        <td>${r['Ticket Number'] || '-'}</td>
-        <td>${r['Disposition: L2 Disposition'] || '-'}</td>
-        <td>${r['Assigned To'] || r['Agent Name'] || 'Agent'}</td>
-      </tr>
-    `).join('');
-}
-
-if(name==='summary'){
+  if(name==='summary'){
     const comp=wa.filter(r=>r.status==='completed').length;
     const trans=wa.filter(r=>r.status==='transferred').length;
     const m2=med(resTimes),p75=pct(resTimes,75),p90=pct(resTimes,90);
@@ -1343,157 +830,86 @@ if(name==='summary'){
   }
 
   if(name==='repeat'){
-    const rep=wa.filter(r=>r.isRepeat).length;
+    const dailyRep=wa.filter(r=>r.dailyRepeat).length;
+    const weeklyRep=wa.filter(r=>r.weeklyRepeat).length;
+    const dailyPct=(total?dailyRep/total*100:0);
+    const weeklyPct=(total?weeklyRep/total*100:0);
+
     document.getElementById('kpi-repeat').innerHTML=[
-      {l:'Total Chats',v:total,c:''},
-      {l:'Repeat Chats',v:rep,c:'red'},
-      {l:'Repeat Chat %',v:(total?rep/total*100:0).toFixed(1)+'%',c:'red'},
-      {l:'Unique Customers',v:Object.keys(phoneFreq).length,c:''},
-    ].map(k=>`<div class="kpi ${k.c}"><div class="lbl">${k.l}</div><div class="val">${k.v}</div></div>`).join('');
-    document.getElementById('repeat-tbody').innerHTML=AGENTS.map(a=>{const rows=wa.filter(r=>r.agent===a);const r2=rows.filter(r=>r.isRepeat).length;const p2=rows.length?r2/rows.length*100:0;return`<tr><td><span class="dot" style="background:${agC(a)}"></span>${a}</td><td>${rows.length}</td><td>${r2}</td><td><strong>${p2.toFixed(1)}%</strong></td><td><span class="badge ${p2>60?'br':p2>40?'ba':'bg'}">${p2>60?'High':p2>40?'Mid':'Low'}</span></td></tr>`;}).join('');
-    const fb={'1':0,'2':0,'3':0,'4+':0};Object.values(phoneFreq).forEach(c=>{if(c===1)fb['1']++;else if(c===2)fb['2']++;else if(c===3)fb['3']++;else fb['4+']++;});
-    destroyC('c-freq');CH['c-freq']=new Chart(document.getElementById('c-freq'),{type:'bar',data:{labels:['1 contact','2 contacts','3 contacts','4+ contacts'],datasets:[{data:Object.values(fb),backgroundColor:['#16a34a','#ca8a04','#dc2626','#991b1b'],borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:11}}},y:{ticks:{font:{size:11}},beginAtZero:true}}}});
-  }
+      {l:'Daily Repeat %',v:dailyPct.toFixed(1)+'%',s:`${dailyRep} chats`,c:dailyPct>40?'red':'green'},
+      {l:'Weekly Repeat %',v:weeklyPct.toFixed(1)+'%',s:`${weeklyRep} chats`,c:weeklyPct>50?'red':'amber'},
+      {l:'Unique Customers',v:Object.keys(phoneFreq).length,s:'WhatsApp users',c:'blue'},
+      {l:'Repeat Dispositions',v:new Set(wa.filter(r=>r.weeklyRepeat).map(r=>r.disposition).filter(Boolean)).size,s:'issue types',c:'purple'},
+    ].map(k=>`<div class="kpi ${k.c}"><div class="lbl">${k.l}</div><div class="val">${k.v}</div><div class="sub">${k.s||''}</div></div>`).join('');
 
-  
-if(name==='repeat'){
-const repeatMap = {};
-const customerIssueMap = {};
-const dailyMap = {};
-const dispositionMap = {};
-const customerChats = {};
+    document.getElementById('repeat-tbody').innerHTML=AGENTS.map(a=>{
+      const rows=wa.filter(r=>r.agent===a);
+      const r2=rows.filter(r=>r.weeklyRepeat).length;
+      const p2=rows.length?r2/rows.length*100:0;
+      return`<tr><td><span class="dot" style="background:${agC(a)}"></span>${a}</td><td>${rows.length}</td><td>${r2}</td><td><strong>${p2.toFixed(1)}%</strong></td><td><span class="badge ${p2>60?'br':p2>40?'ba':'bg'}">${p2>60?'High':p2>40?'Mid':'Low'}</span></td></tr>`;
+    }).join('');
 
-wa.forEach(r=>{
-  const phone = r.phone || 'unknown';
-  const disp = (r.disposition || 'Unknown').trim();
-  const day = r.startDT ? r.startDT.toLocaleDateString('en-GB',{weekday:'short'}) : 'Unknown';
+    const fb={'1':0,'2':0,'3':0,'4+':0};
+    Object.values(phoneFreq).forEach(c=>{if(c===1)fb['1']++;else if(c===2)fb['2']++;else if(c===3)fb['3']++;else fb['4+']++;});
 
-  const key = phone + '_' + disp;
-
-  repeatMap[key] = (repeatMap[key] || 0) + 1;
-
-  if(!customerIssueMap[phone]) customerIssueMap[phone] = new Set();
-  customerIssueMap[phone].add(disp);
-
-  customerChats[phone] = (customerChats[phone] || 0) + 1;
-
-  if(!dailyMap[day]){
-    dailyMap[day] = {
-      totalChats:0,
-      repeatChats:0,
-      sameIssue:0,
-      differentIssue:0
-    };
-  }
-
-  dailyMap[day].totalChats++;
-
-  if(!dispositionMap[disp]){
-    dispositionMap[disp] = {
-      total:0,
-      repeat:0,
-      diff:0
-    };
-  }
-
-  dispositionMap[disp].total++;
-});
-
-let repeatChats = 0;
-let sameIssueRepeat = 0;
-
-Object.entries(customerChats).forEach(([phone,count])=>{
-  if(count > 1){
-    repeatChats += (count - 1);
-  }
-});
-
-Object.entries(repeatMap).forEach(([key,count])=>{
-  if(count > 1){
-    const parts = key.split('_');
-    const phone = parts[0];
-    const disp = parts.slice(1).join('_');
-
-    sameIssueRepeat += (count - 1);
-    dispositionMap[disp].repeat += (count - 1);
-
-    wa.forEach(r=>{
-      const rPhone = r.phone || 'unknown';
-      const rDisp = (r.disposition || 'Unknown').trim();
-
-      if(rPhone === phone && rDisp === disp){
-        const day = r.startDT ? r.startDT.toLocaleDateString('en-GB',{weekday:'short'}) : 'Unknown';
-
-        if(dailyMap[day]){
-          dailyMap[day].sameIssue++;
+    destroyC('c-freq');
+    CH['c-freq']=new Chart(document.getElementById('c-freq'),{
+      type:'bar',
+      data:{
+        labels:['1 contact','2 contacts','3 contacts','4+ contacts'],
+        datasets:[{
+          data:Object.values(fb),
+          backgroundColor:['#16a34a','#ca8a04','#dc2626','#991b1b'],
+          borderRadius:4
+        }]
+      },
+      options:{
+        responsive:true,
+        maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{
+          x:{ticks:{font:{size:11}}},
+          y:{ticks:{font:{size:11}},beginAtZero:true}
         }
       }
     });
-  }
-});
 
-const differentIssueRepeat = Math.max(0, repeatChats - sameIssueRepeat);
+    const dispMap={};
 
-Object.entries(customerIssueMap).forEach(([phone,set])=>{
-  if(set.size > 1){
-    Object.values(dailyMap).forEach(v=>{
-      v.differentIssue++;
+    wa.forEach(r=>{
+      if(!r.disposition)return;
+
+      if(!dispMap[r.disposition]){
+        dispMap[r.disposition]={total:0,daily:0,weekly:0};
+      }
+
+      dispMap[r.disposition].total++;
+
+      if(r.dailyRepeat)dispMap[r.disposition].daily++;
+      if(r.weeklyRepeat)dispMap[r.disposition].weekly++;
     });
+
+    document.getElementById('repeat-disp-tbody').innerHTML=
+      Object.entries(dispMap)
+      .sort((a,b)=>b[1].weekly-a[1].weekly)
+      .map(([d,v])=>{
+        const pct=v.total?(v.weekly/v.total*100):0;
+
+        return `<tr>
+          <td><strong>${d}</strong></td>
+          <td>${v.total}</td>
+          <td style="color:#f59e0b;font-weight:700">${v.daily}</td>
+          <td style="color:#dc2626;font-weight:700">${v.weekly}</td>
+          <td>
+            <span class="badge ${pct<20?'bg':pct<40?'ba':'br'}">
+              ${pct.toFixed(1)}%
+            </span>
+          </td>
+        </tr>`;
+      }).join('');
   }
-});
 
-Object.values(dailyMap).forEach(v=>{
-  v.repeatChats = v.sameIssue + v.differentIssue;
-});
-
-const repeatPct = total ? ((repeatChats / total) * 100).toFixed(1) : '0';
-
-document.getElementById('kpi-repeat').innerHTML = [
-{l:'Repeat Chats',v:repeatChats,c:'red'},
-{l:'Repeat %',v:repeatPct+'%',c:'amber'},
-{l:'Same Issue Repeat',v:sameIssueRepeat,c:'red'},
-{l:'Different Issue Repeat',v:differentIssueRepeat,c:'blue'},
-{l:'Avg Issues / Customer',v:(Object.values(customerIssueMap).reduce((a,b)=>a+b.size,0)/Math.max(1,Object.keys(customerIssueMap).length)).toFixed(1),c:'green'}
-].map(k=>`<div class="kpi ${k.c}"><div class="lbl">${k.l}</div><div class="val">${k.v}</div></div>`).join('');
-
-document.getElementById('repeat-disposition-tbody').innerHTML =
-Object.entries(dispositionMap)
-.sort((a,b)=>b[1].repeat-a[1].repeat)
-.map(([d,v])=>`
-<tr>
-<td><strong>${d}</strong></td>
-<td>${v.total}</td>
-<td style="color:#dc2626;font-weight:700">${v.repeat}</td>
-<td>${v.total ? ((v.repeat/v.total)*100).toFixed(1) : 0}%</td>
-</tr>
-`).join('');
-
-document.getElementById('repeat-daily-tbody').innerHTML =
-Object.entries(dailyMap)
-.map(([d,v])=>`
-<tr>
-<td><strong>${d}</strong></td>
-<td>${v.incoming.size}</td>
-<td style="color:#dc2626;font-weight:700">${v.repeat}</td>
-<td style="color:#2563eb;font-weight:700">${v.multi}</td>
-<td>${v.incoming.size ? ((v.repeat/v.incoming.size)*100).toFixed(1) : 0}%</td>
-</tr>
-`).join('');
-
-document.getElementById('multi-issue-tbody').innerHTML =
-multiIssueCustomers
-.slice(0,25)
-.map(([phone,set])=>`
-<tr>
-<td>${phone}</td>
-<td>${wa.filter(r=>r.phone===phone).length}</td>
-<td>${set.size}</td>
-</tr>
-`).join('');
-}
-
-
-if(name==='orders'){
+  if(name==='orders'){
     const od=Object.entries(orderFreq).sort((a,b)=>b[1]-a[1]);
     document.getElementById('kpi-orders').innerHTML=[
       {l:'Total Orders',v:Object.keys(orderFreq).length,c:''},
@@ -1544,150 +960,7 @@ if(name==='orders'){
     document.getElementById('dsat-tbody').innerHTML=wa.filter(r=>r.csat!==null&&r.csat<=3).sort((a,b)=>a.csat-b.csat).slice(0,50).map(r=>`<tr><td>${r.ticketId}</td><td>${r.agent}</td><td>${r.customer||'-'}</td><td><span class="badge ${r.csat<=2?'br':'ba'}">${r.csat} Star</span></td><td style="font-size:10px;color:#64748b">-</td><td style="font-size:10px;color:#64748b">${r.disposition||'-'}</td><td style="font-size:10px;color:#64748b">${r.product||'-'}</td></tr>`).join('');
   }
 
-  
-
-if(name==='bot'){
-  const aaTicketSet = new Set(
-    wa.map(r => String(r.ticketId||'').replace('#','').trim()).filter(Boolean)
-  );
-
-  const uniqueTickets = {};
-  (tktRows || []).forEach(r=>{
-    const tid = String(r['Ticket Number'] || r['Ticket ID'] || '').replace('#','').trim();
-    if(!tid) return;
-    if(!uniqueTickets[tid]) uniqueTickets[tid] = r;
-  });
-
-  const parsed = Object.entries(uniqueTickets).map(([tid,r])=>{
-    const autoResolved = String(r['Auto Resolved'] || '').toLowerCase().includes('yes');
-
-    const disposition = String(
-      r['Disposition: L2 Disposition'] || 'Unknown'
-    ).trim();
-
-    const phone = String(
-      r['Requester: Mobile'] ||
-      r['Customer Phone'] ||
-      ''
-    ).replace(/\D/g,'').slice(-10);
-
-    const csat = getCSAT(r);
-
-    const humanTouched = aaTicketSet.has(tid);
-
-    return {
-      tid,
-      autoResolved,
-      disposition,
-      phone,
-      csat,
-      humanTouched
-    };
-  });
-
-  const totalIncoming = parsed.length;
-
-  const botAttempted = parsed.filter(x=>x.autoResolved).length;
-
-  const humanAssisted = parsed.filter(
-    x=>x.autoResolved && x.humanTouched
-  ).length;
-
-  const trueBot = parsed.filter(
-    x=>x.autoResolved && !x.humanTouched
-  ).length;
-
-  const leakagePct = botAttempted
-    ? ((humanAssisted/botAttempted)*100).toFixed(1)
-    : 0;
-
-  const repeatMap = {};
-  parsed.forEach(x=>{
-    if(x.phone){
-      repeatMap[x.phone] = (repeatMap[x.phone] || 0) + 1;
-    }
-  });
-
-  const repeatCustomers = Object.values(repeatMap).filter(v=>v>1).length;
-
-  const repeatPct = totalIncoming
-    ? ((repeatCustomers/totalIncoming)*100).toFixed(1)
-    : 0;
-
-  const csatRows = parsed.filter(x=>x.csat!==null);
-
-  const csatGood = csatRows.filter(x=>x.csat>=4).length;
-  const dsatBad = csatRows.filter(x=>x.csat<=3).length;
-
-  document.getElementById('kpi-bot').innerHTML = [
-    {l:'Incoming',v:totalIncoming,c:'blue'},
-    {l:'Bot Attempted',v:botAttempted,c:'purple'},
-    {l:'Human Assisted',v:humanAssisted,c:'amber'},
-    {l:'True Bot',v:trueBot,c:'green'},
-    {l:'Leakage %',v:leakagePct+'%',c:'red'},
-    {l:'Repeat %',v:repeatPct+'%',c:'rose'},
-    {l:'CSAT',v:csatGood,c:'green'},
-    {l:'DSAT',v:dsatBad,c:'red'}
-  ].map(k=>`
-    <div class="kpi ${k.c}">
-      <div class="lbl">${k.l}</div>
-      <div class="val">${k.v}</div>
-    </div>
-  `).join('');
-
-  destroyC('c-bot');
-
-  CH['c-bot'] = new Chart(
-    document.getElementById('c-bot'),
-    {
-      type:'bar',
-      data:{
-        labels:[
-          'Incoming',
-          'Bot Attempted',
-          'Human Assisted',
-          'True Bot'
-        ],
-        datasets:[{
-          data:[
-            totalIncoming,
-            botAttempted,
-            humanAssisted,
-            trueBot
-          ],
-          backgroundColor:[
-            '#3b82f6',
-            '#8b5cf6',
-            '#f59e0b',
-            '#16a34a'
-          ],
-          borderRadius:5
-        }]
-      },
-      options:{
-        responsive:true,
-        maintainAspectRatio:false,
-        plugins:{legend:{display:false}}
-      }
-    }
-  );
-
-  const leakage = parsed.filter(
-    x=>x.autoResolved && x.humanTouched
-  );
-
-  document.getElementById('bot-rca').innerHTML =
-    leakage.slice(0,100).map(x=>`
-      <tr>
-        <td>${x.tid}</td>
-        <td>${x.disposition}</td>
-        <td>Agent Assisted</td>
-      </tr>
-    `).join('');
-}
-
-
-if(name==='roster'){
+  if(name==='roster'){
     const dowNames={0:'Sunday',1:'Monday',2:'Tuesday',3:'Wednesday',4:'Thursday',5:'Friday',6:'Saturday'};
     const dayV={};wa.forEach(r=>{if(r.dow!==null){const d=dowNames[r.dow];dayV[d]=(dayV[d]||0)+1;}});
     const sd=Object.entries(dayV).sort((a,b)=>a[1]-b[1]);
