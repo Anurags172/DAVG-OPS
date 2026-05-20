@@ -1232,7 +1232,8 @@ function renderTab(name){
         botHandled++;
       }
 
-      repeatMap[phone]=(repeatMap[phone]||0)+1;
+      const repeatKey = task + '__' + phone;
+      repeatMap[repeatKey] = (repeatMap[repeatKey] || 0) + 1;
 
       const rating = Number(r['CSAT'] || r['CSAT Rating']);
 
@@ -1251,8 +1252,20 @@ function renderTab(name){
 
     });
 
-    Object.entries(repeatMap).forEach(([p,c])=>{
-      if(c>1) repeat += (c-1);
+    Object.entries(repeatMap).forEach(([key,c])=>{
+
+      if(c > 1){
+
+        repeat += (c - 1);
+
+        const task = key.split('__')[0];
+
+        if(taskMap[task]){
+          taskMap[task].repeat += (c - 1);
+        }
+
+      }
+
     });
 
     const actualBotHandled = botHandled-repeat;
