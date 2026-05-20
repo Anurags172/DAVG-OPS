@@ -322,138 +322,59 @@ select{padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:11px
 
 
 <!-- AI BOT -->
+
 <div id="panel-aibot" class="panel">
 
-  <div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">
-    <div class="kpi blue">
-      <div class="lbl">AI Touches</div>
-      <div class="val">296</div>
-      <div class="sub">Vendor reported AI interactions</div>
+  <div class="kpi-row" id="ai-kpis"></div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>📊 Ticket Status Breakup</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Tickets</th>
+            <th>%</th>
+          </tr>
+        </thead>
+        <tbody id="ai-status-body"></tbody>
+      </table>
     </div>
 
-    <div class="kpi green">
-      <div class="lbl">True AI Containment</div>
-      <div class="val">3</div>
-      <div class="sub">Never reached human same day</div>
-    </div>
-
-    <div class="kpi red">
-      <div class="lbl">Same-Day Escalations</div>
-      <div class="val">293</div>
-      <div class="sub">Reached human support same day</div>
-    </div>
-
-    <div class="kpi amber">
-      <div class="lbl">Real Containment %</div>
-      <div class="val">1.0%</div>
-      <div class="sub">Actual automation success</div>
+    <div class="card">
+      <h3>😊 Survey Intelligence</h3>
+      <table>
+        <tbody id="ai-survey-body"></tbody>
+      </table>
     </div>
   </div>
 
   <div class="card">
-    <h3>AI Disposition Intelligence</h3>
+    <h3>📈 Top 10 Task Intelligence</h3>
 
     <table>
       <thead>
         <tr>
-          <th>Disposition</th>
+          <th>Task</th>
           <th>AI Touch</th>
           <th>Escalated</th>
           <th>Repeat</th>
+          <th>CSAT</th>
+          <th>DSAT</th>
           <th>Status</th>
         </tr>
       </thead>
 
-      <tbody>
+      <tbody id="ai-task-body"></tbody>
 
-        <tr>
-          <td><strong>Order Tracking</strong></td>
-          <td>120</td>
-          <td style="color:#dc2626;font-weight:700">15</td>
-          <td>5</td>
-          <td><span class="badge bg">AI Friendly</span></td>
-        </tr>
-
-        <tr>
-          <td><strong>Refund Status</strong></td>
-          <td>52</td>
-          <td style="color:#dc2626;font-weight:700">48</td>
-          <td>19</td>
-          <td><span class="badge br">High Escalation</span></td>
-        </tr>
-
-        <tr>
-          <td><strong>Delay In Delivery</strong></td>
-          <td>31</td>
-          <td style="color:#dc2626;font-weight:700">28</td>
-          <td>11</td>
-          <td><span class="badge br">High Escalation</span></td>
-        </tr>
-
-        <tr>
-          <td><strong>Delivered Not Received</strong></td>
-          <td>24</td>
-          <td style="color:#dc2626;font-weight:700">24</td>
-          <td>14</td>
-          <td><span class="badge br">Human Required</span></td>
-        </tr>
-
-        <tr>
-          <td><strong>Partial Missing</strong></td>
-          <td>18</td>
-          <td style="color:#dc2626;font-weight:700">18</td>
-          <td>8</td>
-          <td><span class="badge br">Human Required</span></td>
-        </tr>
-
-        <tr>
-          <td><strong>Wrong Product</strong></td>
-          <td>15</td>
-          <td style="color:#dc2626;font-weight:700">14</td>
-          <td>6</td>
-          <td><span class="badge br">Human Required</span></td>
-        </tr>
-
-        <tr>
-          <td><strong>Refund Pending</strong></td>
-          <td>12</td>
-          <td style="color:#dc2626;font-weight:700">11</td>
-          <td>5</td>
-          <td><span class="badge br">Human Required</span></td>
-        </tr>
-
-        <tr>
-          <td><strong>Pickup Issue</strong></td>
-          <td>9</td>
-          <td style="color:#dc2626;font-weight:700">9</td>
-          <td>4</td>
-          <td><span class="badge br">High Escalation</span></td>
-        </tr>
-
-        <tr>
-          <td><strong>Exchange Status</strong></td>
-          <td>8</td>
-          <td style="color:#dc2626;font-weight:700">6</td>
-          <td>2</td>
-          <td><span class="badge ba">Moderate</span></td>
-        </tr>
-
-        <tr>
-          <td><strong>Payment Failure</strong></td>
-          <td>7</td>
-          <td style="color:#dc2626;font-weight:700">1</td>
-          <td>1</td>
-          <td><span class="badge bg">AI Friendly</span></td>
-        </tr>
-
-      </tbody>
     </table>
   </div>
 
 </div>
 
-
 <!-- ORDERS -->
+
 <div id="panel-orders" class="panel">
   <div class="kpi-row" id="kpi-orders" style="grid-template-columns:repeat(4,1fr)"></div>
   <div class="grid2">
@@ -1226,6 +1147,171 @@ function renderTab(name){
     });
   }
 
+
+
+  
+  
+  
+  if(name==='aibot'){
+
+    const ticketRows = tktRows || [];
+    const agentRows = aaRows || [];
+
+    function cleanPhone(v){
+      if(!v) return '';
+      let s = String(v).replace(/[^0-9]/g,'');
+      if(s.length>10) s=s.slice(-10);
+      return s;
+    }
+
+    const totalDemand = ticketRows.length;
+
+    const aiRows = ticketRows.filter(r =>
+      String(r['Status'] || '')
+      .toLowerCase()
+      .includes('resolved by ai')
+    );
+
+    const agentPhones = new Set();
+
+    agentRows.forEach(r=>{
+      const p = cleanPhone(
+        r['Phone'] ||
+        r['Customer Phone'] ||
+        r['phone']
+      );
+      if(p) agentPhones.add(p);
+    });
+
+    let matched = 0;
+    let botHandled = 0;
+    let repeat = 0;
+    let surveys = 0;
+    let csat = 0;
+    let dsat = 0;
+
+    const repeatMap = {};
+    const taskMap = {};
+    const statusMap = {};
+
+    ticketRows.forEach(r=>{
+      const s = String(r['Status'] || 'Unknown').trim();
+      statusMap[s] = (statusMap[s] || 0) + 1;
+    });
+
+    aiRows.forEach(r=>{
+
+      const phone = cleanPhone(
+        r['Customer Phone'] ||
+        r['Phone']
+      );
+
+      const task = String(
+        r['Task Names'] ||
+        r['Task Name'] ||
+        r['Task'] ||
+        'General Support'
+      );
+
+      if(!taskMap[task]){
+        taskMap[task]={
+          ai:0,
+          esc:0,
+          repeat:0,
+          csat:0,
+          dsat:0
+        };
+      }
+
+      taskMap[task].ai++;
+
+      if(phone && agentPhones.has(phone)){
+        matched++;
+        taskMap[task].esc++;
+      }else{
+        botHandled++;
+      }
+
+      repeatMap[phone]=(repeatMap[phone]||0)+1;
+
+      const rating = Number(r['CSAT'] || r['CSAT Rating']);
+
+      if(!isNaN(rating) && rating>0){
+
+        surveys++;
+
+        if(rating>=4){
+          csat++;
+          taskMap[task].csat++;
+        }else{
+          dsat++;
+          taskMap[task].dsat++;
+        }
+      }
+
+    });
+
+    Object.entries(repeatMap).forEach(([p,c])=>{
+      if(c>1) repeat += (c-1);
+    });
+
+    const actualBotHandled = botHandled-repeat;
+
+    const actualPct = totalDemand
+      ? ((actualBotHandled/totalDemand)*100).toFixed(1)
+      : 0;
+
+    const matchPct = aiRows.length
+      ? ((matched/aiRows.length)*100).toFixed(1)
+      : 0;
+
+    const csatPct = surveys
+      ? ((csat/surveys)*100).toFixed(1)
+      : 0;
+
+    document.getElementById('ai-kpis').innerHTML = `
+      <div class="kpi blue"><div class="lbl">TOTAL DEMAND</div><div class="val">${totalDemand}</div><div class="sub">Ticket All universe</div></div>
+      <div class="kpi"><div class="lbl">AI TOUCHES</div><div class="val">${aiRows.length}</div><div class="sub">Resolved by AI</div></div>
+      <div class="kpi amber"><div class="lbl">MATCH CONFIDENCE</div><div class="val">${matchPct}%</div><div class="sub">${matched} matched phones</div></div>
+      <div class="kpi green"><div class="lbl">BOT HANDLED</div><div class="val">${botHandled}</div><div class="sub">Not found in Agent Activity</div></div>
+      <div class="kpi red"><div class="lbl">REPEAT</div><div class="val">${repeat}</div><div class="sub">Repeat AI journeys</div></div>
+      <div class="kpi purple"><div class="lbl">ACTUAL BOT HANDLED %</div><div class="val">${actualPct}%</div><div class="sub">Operational estimate</div></div>
+    `;
+
+    document.getElementById('ai-status-body').innerHTML =
+      Object.entries(statusMap)
+      .sort((a,b)=>b[1]-a[1])
+      .map(([s,c])=>`
+        <tr>
+          <td>${s}</td>
+          <td>${c}</td>
+          <td>${((c/totalDemand)*100).toFixed(1)}%</td>
+        </tr>
+      `).join('');
+
+    document.getElementById('ai-survey-body').innerHTML = `
+      <tr><td>Total Surveys</td><td>${surveys}</td></tr>
+      <tr><td>CSAT</td><td>${csat}</td></tr>
+      <tr><td>DSAT</td><td>${dsat}</td></tr>
+      <tr><td>CSAT %</td><td>${csatPct}%</td></tr>
+    `;
+
+    document.getElementById('ai-task-body').innerHTML =
+      Object.entries(taskMap)
+      .sort((a,b)=>b[1].ai-a[1].ai)
+      .slice(0,10)
+      .map(([task,v])=>`
+        <tr>
+          <td>${task}</td>
+          <td>${v.ai}</td>
+          <td>${v.esc}</td>
+          <td>${v.repeat}</td>
+          <td>${v.csat}</td>
+          <td>${v.dsat}</td>
+          <td>${v.esc/v.ai < 0.2 ? 'AI Friendly' : (v.esc/v.ai < 0.5 ? 'Moderate' : 'Human Required')}</td>
+        </tr>
+      `).join('');
+  }
 
 
   if(name==='orders'){
