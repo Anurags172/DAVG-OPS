@@ -267,6 +267,12 @@ select{padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:11px
   <div class="grid2">
     <div class="card">
       <h3>Daily incoming vs repeat</h3>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+        <span style="font-size:11px;color:#64748b;font-weight:500">Filter by disposition:</span>
+        <select id="repeat-disp-filter" onchange="filterRepeatChart()" style="font-size:11px;padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;max-width:220px">
+          <option value="all">All Dispositions</option>
+        </select>
+      </div>
       <div class="ch240"><canvas id="c-repeat-daily"></canvas></div>
     </div>
 
@@ -416,6 +422,20 @@ select{padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:11px
     <h3>CSAT & DSAT by agent — detailed</h3>
     <table><thead><tr><th>Agent</th><th>Rated</th><th>CSAT (4-5)</th><th>CSAT %</th><th>DSAT (1-3)</th><th>DSAT %</th><th>Avg Score</th><th>5 Star</th><th>Rating</th></tr></thead>
     <tbody id="csat-agent-tbody"></tbody></table>
+  </div>
+  <div class="card">
+    <h3>7-day CSAT & DSAT trend</h3>
+    <div id="csat-7day-warn" class="warn" style="font-size:11px;margin-bottom:8px">Upload multiple days of data to see the 7-day trend.</div>
+    <div id="csat-7day-wrap" style="display:none">
+      <div style="position:relative;height:220px"><canvas id="c-csat-7day"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Daily CSAT by agent (multi-day view)</h3>
+    <div id="agent-7day-warn" class="warn" style="font-size:11px;margin-bottom:8px">Upload multiple days of data to see agent daily CSAT breakdown.</div>
+    <div id="agent-7day-wrap" style="display:none">
+      <div style="position:relative;height:260px"><canvas id="c-agent-7day"></canvas></div>
+    </div>
   </div>
   <div class="card" style="margin-top:0"><h3>DSAT follow-up list (ratings 1-3)</h3>
     <table><thead><tr><th>Ticket</th><th>Agent</th><th>Customer</th><th>Rating</th><th>Comment</th><th>Disposition</th><th>Product</th></tr></thead>
@@ -1104,47 +1124,26 @@ function renderTab(name){
 
     destroyC('c-repeat-daily');
 
-    CH['c-repeat-daily']=new Chart(document.getElementById('c-repeat-daily'),{
-      type:'bar',
-      data:{
-        labels:orderedDays.filter(d=>dailyStats[d]),
-        datasets:[
-          {
-            label:'Incoming',
-            data:orderedDays.filter(d=>dailyStats[d]).map(d=>dailyStats[d].incoming),
-            backgroundColor:'#3b82f6',
-            borderRadius:4
-          },
-          {
-            label:'Daily Repeat',
-            data:orderedDays.filter(d=>dailyStats[d]).map(d=>dailyStats[d].repeat),
-            backgroundColor:'#dc2626',
-            borderRadius:4
-          }
-        ]
-      },
-      options:{
-        responsive:true,
-        maintainAspectRatio:false,
-        plugins:{
-          legend:{
-            position:'bottom',
-            labels:{
-              font:{size:11}
-            }
-          }
-        },
-        scales:{
-          x:{
-            ticks:{font:{size:10}}
-          },
-          y:{
-            beginAtZero:true,
-            ticks:{font:{size:11}}
-          }
-        }
-      }
-    });
+    // Store daily stats globally for filter function
+    window._repeatDailyStats = dailyStats;
+    window._repeatDailyDispositions = repeatDispositions;
+    window._orderedDays = orderedDays;
+
+    // Populate disposition filter dropdown
+    const sel=document.getElementById('repeat-disp-filter');
+    // Only add options if not already populated
+    if(sel.options.length<=1){
+      Object.entries(repeatDispositions)
+        .filter(([,v])=>v.total>0)
+        .sort((a,b)=>b[1].total-a[1].total)
+        .forEach(([d])=>{
+          const opt=document.createElement('option');
+          opt.value=d;opt.textContent=d;
+          sel.appendChild(opt);
+        });
+    }
+
+    renderRepeatDailyChart('all');
   }
 
 
@@ -1375,6 +1374,100 @@ function renderTab(name){
       const cP=ar.length?good/ar.length*100:0,dP=ar.length?bad/ar.length*100:0;
       return`<tr><td><span class="dot" style="background:${agC(a)}"></span><strong>${a}</strong></td><td>${ar.length}</td><td style="color:#16a34a;font-weight:700">${good}</td><td><span class="badge bg">${cP.toFixed(1)}%</span></td><td style="color:#dc2626;font-weight:700">${bad}</td><td><span class="badge ${dP>30?'br':dP>15?'ba':'bg'}">${dP.toFixed(1)}%</span></td><td style="font-weight:700;color:${avgS>=4?'#16a34a':avgS>=3?'#d97706':'#dc2626'}">${fmt(avgS)}</td><td>${five}</td><td><span class="badge ${avgS>=4.5?'bg':avgS>=4?'bg':avgS>=3?'ba':'br'}">${avgS>=4?'Good':avgS>=3?'Average':'Poor'}</span></td></tr>`;
     }).join('');
+
+    // ── 7-DAY CSAT TREND ─────────────────────────────────────────────────────
+    // Use CSAT Submitted At from tktRows for accurate date
+    const csatByDay={};
+    if(tktRows){
+      tktRows.forEach(r=>{
+        const rating=parseFloat(r['CSAT Rating']);
+        if(!rating||isNaN(rating)||rating<1||rating>5) return;
+        const dateStr=r['CSAT Submitted At']||r['Created At']||'';
+        if(!dateStr) return;
+        let d=null;
+        try{d=new Date(dateStr);}catch(e){return;}
+        if(!d||isNaN(d)) return;
+        const key=d.toISOString().slice(0,10); // YYYY-MM-DD
+        if(!csatByDay[key])csatByDay[key]={good:0,bad:0,total:0};
+        csatByDay[key].total++;
+        if(rating>=4)csatByDay[key].good++;
+        else csatByDay[key].bad++;
+      });
+    }
+    // Also pull from wa rows as fallback
+    if(!Object.keys(csatByDay).length){
+      wa.filter(r=>r.csat!==null).forEach(r=>{
+        const d=r.startDT;if(!d)return;
+        const key=d.toISOString().slice(0,10);
+        if(!csatByDay[key])csatByDay[key]={good:0,bad:0,total:0};
+        csatByDay[key].total++;
+        if(r.csat>=4)csatByDay[key].good++;
+        else csatByDay[key].bad++;
+      });
+    }
+    const cdays=Object.keys(csatByDay).sort();
+    const c7warn=document.getElementById('csat-7day-warn');
+    const c7wrap=document.getElementById('csat-7day-wrap');
+    if(cdays.length<2){c7warn.style.display='block';c7wrap.style.display='none';}
+    else{
+      c7warn.style.display='none';c7wrap.style.display='block';
+      destroyC('c-csat-7day');
+      CH['c-csat-7day']=new Chart(document.getElementById('c-csat-7day'),{
+        type:'line',
+        data:{
+          labels:cdays.map(d=>{const dt=new Date(d);return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});}),
+          datasets:[
+            {label:'CSAT (4-5)',data:cdays.map(d=>csatByDay[d].good),borderColor:'#16a34a',backgroundColor:'rgba(22,163,74,.1)',fill:true,tension:.3,pointRadius:5,pointBackgroundColor:'#16a34a'},
+            {label:'DSAT (1-3)',data:cdays.map(d=>csatByDay[d].bad),borderColor:'#dc2626',backgroundColor:'rgba(220,38,38,.1)',fill:true,tension:.3,pointRadius:5,pointBackgroundColor:'#dc2626'},
+            {label:'CSAT %',data:cdays.map(d=>csatByDay[d].total?(csatByDay[d].good/csatByDay[d].total*100).toFixed(1):0),borderColor:'#3b82f6',backgroundColor:'transparent',tension:.3,pointRadius:3,borderDash:[5,5],yAxisID:'y1'}
+          ]
+        },
+        options:{
+          responsive:true,maintainAspectRatio:false,
+          plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12,padding:8}}},
+          scales:{
+            x:{ticks:{font:{size:10}}},
+            y:{ticks:{font:{size:11}},beginAtZero:true,title:{display:true,text:'Count',font:{size:10}}},
+            y1:{ticks:{font:{size:10},callback:v=>v+'%'},beginAtZero:true,max:100,position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'CSAT %',font:{size:10}}}
+          }
+        }
+      });
+    }
+
+    // ── AGENT DAILY CSAT BREAKDOWN ─────────────────────────────────────────
+    const agentByDay={};
+    wa.filter(r=>r.csat!==null&&r.startDT).forEach(r=>{
+      const key=r.startDT.toISOString().slice(0,10);
+      if(!agentByDay[r.agent])agentByDay[r.agent]={};
+      if(!agentByDay[r.agent][key])agentByDay[r.agent][key]={good:0,bad:0};
+      if(r.csat>=4)agentByDay[r.agent][key].good++;
+      else agentByDay[r.agent][key].bad++;
+    });
+    const agDays=[...new Set(wa.filter(r=>r.csat!==null&&r.startDT).map(r=>r.startDT.toISOString().slice(0,10)))].sort();
+    const a7warn=document.getElementById('agent-7day-warn');
+    const a7wrap=document.getElementById('agent-7day-wrap');
+    if(agDays.length<2){a7warn.style.display='block';a7wrap.style.display='none';}
+    else{
+      a7warn.style.display='none';a7wrap.style.display='block';
+      destroyC('c-agent-7day');
+      CH['c-agent-7day']=new Chart(document.getElementById('c-agent-7day'),{
+        type:'bar',
+        data:{
+          labels:agDays.map(d=>{const dt=new Date(d);return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});}),
+          datasets:AGENTS.map(a=>({
+            label:a.split(' ')[0],
+            data:agDays.map(d=>(agentByDay[a]&&agentByDay[a][d])?agentByDay[a][d].good:0),
+            backgroundColor:agC(a),borderRadius:3,stack:'s'
+          }))
+        },
+        options:{
+          responsive:true,maintainAspectRatio:false,
+          plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10,padding:6}}},
+          scales:{x:{ticks:{font:{size:10}},stacked:true},y:{ticks:{font:{size:11}},beginAtZero:true,stacked:true}}
+        }
+      });
+    }
+
     document.getElementById('dsat-tbody').innerHTML=wa.filter(r=>r.csat!==null&&r.csat<=3).sort((a,b)=>a.csat-b.csat).slice(0,50).map(r=>`<tr><td>${r.ticketId}</td><td>${r.agent}</td><td>${r.customer||'-'}</td><td><span class="badge ${r.csat<=2?'br':'ba'}">${r.csat} Star</span></td><td style="font-size:10px;color:#64748b">-</td><td style="font-size:10px;color:#64748b">${r.disposition||'-'}</td><td style="font-size:10px;color:#64748b">${r.product||'-'}</td></tr>`).join('');
   }
 
@@ -1433,6 +1526,62 @@ function renderTab(name){
 
     destroyC('c-heatmap');CH['c-heatmap']=new Chart(document.getElementById('c-heatmap'),{type:'bar',data:{labels:hours.map(h=>h+':00'),datasets:AGENTS.map(a=>({label:a.split(' ')[0],data:hours.map(h=>wa.filter(r=>r.hour===h&&r.agent===a).length),backgroundColor:agC(a),borderRadius:2,stack:'s'}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10,padding:6}}},scales:{x:{ticks:{font:{size:10},autoSkip:false},stacked:true},y:{ticks:{font:{size:11}},beginAtZero:true,stacked:true}}}});
   }
+}
+
+// ─── REPEAT CHART FILTER ─────────────────────────────────────────────────────
+function filterRepeatChart(){
+  const sel=document.getElementById('repeat-disp-filter');
+  renderRepeatDailyChart(sel?sel.value:'all');
+}
+
+function renderRepeatDailyChart(dispFilter){
+  const dailyStats=window._repeatDailyStats||{};
+  const orderedDays=window._orderedDays||['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+  // If filtering by disposition — need per-day disposition stats
+  // We rebuild per-day filtered data from wa
+  if(!G)return;
+  const wa=G.wa;
+
+  let incomingData, repeatData, labels;
+
+  if(dispFilter==='all'){
+    labels=orderedDays.filter(d=>dailyStats[d]);
+    incomingData=labels.map(d=>dailyStats[d].incoming);
+    repeatData=labels.map(d=>dailyStats[d].repeat);
+  } else {
+    // Per day filtered by specific disposition
+    const dowNames=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const filteredStats={};
+    wa.forEach(r=>{
+      if(!r.startDT)return;
+      if(r.disposition!==dispFilter)return;
+      const day=dowNames[r.startDT.getDay()];
+      if(!filteredStats[day])filteredStats[day]={incoming:0,repeat:0};
+      filteredStats[day].incoming++;
+      if(r.dailyRepeat)filteredStats[day].repeat++;
+    });
+    labels=orderedDays.filter(d=>filteredStats[d]);
+    incomingData=labels.map(d=>filteredStats[d].incoming);
+    repeatData=labels.map(d=>filteredStats[d].repeat);
+  }
+
+  destroyC('c-repeat-daily');
+  CH['c-repeat-daily']=new Chart(document.getElementById('c-repeat-daily'),{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:'Incoming'+(dispFilter!=='all'?' ('+dispFilter+')':''),data:incomingData,backgroundColor:'#3b82f6',borderRadius:4},
+        {label:'Daily Repeat'+(dispFilter!=='all'?' ('+dispFilter+')':''),data:repeatData,backgroundColor:'#dc2626',borderRadius:4}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12,padding:8}}},
+      scales:{x:{ticks:{font:{size:10}}},y:{beginAtZero:true,ticks:{font:{size:11}}}}
+    }
+  });
 }
 
 // ─── FILE UPLOAD ──────────────────────────────────────────────────────────────
