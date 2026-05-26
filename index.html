@@ -206,6 +206,98 @@ canvas{
   animation:fadeUp .6s ease both;
 }
 
+
+
+/* ─── PREMIUM ICON GLOW SYSTEM ───────────────── */
+.card h3{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  transition:all .25s ease;
+}
+
+.card:hover h3{
+  transform:translateX(2px);
+}
+
+#panel-efficiency .card h3:hover{
+  text-shadow:0 0 10px rgba(245,158,11,.35);
+}
+
+#panel-aibot .card h3:hover{
+  text-shadow:0 0 10px rgba(139,92,246,.35);
+}
+
+#panel-hourly .card h3:hover{
+  text-shadow:0 0 10px rgba(59,130,246,.35);
+}
+
+#panel-sla .card h3:hover{
+  text-shadow:0 0 10px rgba(34,197,94,.35);
+}
+
+#panel-repeat .card h3:hover{
+  text-shadow:0 0 10px rgba(239,68,68,.35);
+}
+
+
+
+/* ===== CELESTIAL PREMIUM EFFECTS ===== */
+
+.tab{
+ transition:all .22s ease !important;
+}
+
+.tab:hover{
+ transform:translateY(-4px) scale(1.04) !important;
+ background:rgba(59,130,246,.08) !important;
+ border-radius:10px 10px 0 0 !important;
+ box-shadow:0 8px 18px rgba(59,130,246,.15) !important;
+}
+
+.card{
+ transition:all .25s ease !important;
+}
+
+.card:hover{
+ transform:translateY(-3px) !important;
+ box-shadow:0 14px 30px rgba(15,23,42,.08) !important;
+}
+
+#panel-efficiency .card:hover{
+ border-color:#f59e0b !important;
+ box-shadow:0 0 18px rgba(245,158,11,.18) !important;
+}
+
+#panel-aibot .card:hover{
+ border-color:#8b5cf6 !important;
+ box-shadow:0 0 18px rgba(139,92,246,.18) !important;
+}
+
+#panel-hourly .card:hover{
+ border-color:#3b82f6 !important;
+ box-shadow:0 0 18px rgba(59,130,246,.18) !important;
+}
+
+#panel-sla .card:hover{
+ border-color:#22c55e !important;
+ box-shadow:0 0 18px rgba(34,197,94,.18) !important;
+}
+
+#panel-repeat .card:hover{
+ border-color:#ef4444 !important;
+ box-shadow:0 0 18px rgba(239,68,68,.18) !important;
+}
+
+.card h3{
+ transition:all .25s ease !important;
+}
+
+.card:hover h3{
+ transform:translateX(4px) !important;
+ letter-spacing:.04em !important;
+}
+
 </style>
 </head>
 <body>
@@ -258,12 +350,12 @@ canvas{
   <div id="summary-data" style="display:none">
     <div class="kpi-row" id="kpi-summary"></div>
     <div class="grid2">
-      <div class="card"><h3>Resolution time distribution</h3><div class="ch200"><canvas id="c-dist"></canvas></div></div>
-      <div class="card"><h3>Chats by status</h3><div class="ch200"><canvas id="c-status"></canvas></div></div>
+      <div class="card"><h3>📊 Resolution time distribution</h3><div class="ch200"><canvas id="c-dist"></canvas></div></div>
+      <div class="card"><h3>📈 Chats by status</h3><div class="ch200"><canvas id="c-status"></canvas></div></div>
     </div>
     <div class="grid2">
-      <div class="card"><h3>Chats per agent</h3><div class="ch200"><canvas id="c-agent-vol"></canvas></div></div>
-      <div class="card"><h3>Hourly volume</h3><div class="ch200"><canvas id="c-hourly-mini"></canvas></div></div>
+      <div class="card"><h3>👥 Chats per agent</h3><div class="ch200"><canvas id="c-agent-vol"></canvas></div></div>
+      <div class="card"><h3>⚡ Hourly volume</h3><div class="ch200"><canvas id="c-hourly-mini"></canvas></div></div>
     </div>
   </div>
 
@@ -293,6 +385,12 @@ canvas{
 <div class="card" id="weekly-disp-break-card" style="display:none">
   <h3>📋 Weekly disposition breakdown</h3>
 
+  <div class="toggle-row" style="margin-top:-4px;margin-bottom:10px">
+    <button class="tog-btn active">Weekly</button>
+    <button class="tog-btn">Daily</button>
+    <span style="font-size:10px;color:#94a3b8">Top 20 dispositions only</span>
+  </div>
+
   <div style="overflow-x:auto">
     <table id="weekly-disp-matrix">
       <thead id="weekly-disp-head"></thead>
@@ -300,27 +398,7 @@ canvas{
     </table>
   </div>
 </div>
-<!-- WEEKLY DISPOSITION TABLE -->
 
-  <div class="card" id="weekly-disp-card" style="display:none">
-    <h3>📋 Weekly top 10 dispositions</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Disposition</th>
-          <th>Total</th>
-          <th>% of Week</th>
-          <th>Bot Handled</th>
-          <th>Agent Handled</th>
-          <th>Avg Res (min)</th>
-          <th>CSAT</th>
-          <th>DSAT</th>
-        </tr>
-      </thead>
-      <tbody id="weekly-disp-tbody"></tbody>
-    </table>
-  </div>
 </div>
 
 <!-- RESOLUTION -->
@@ -335,12 +413,12 @@ canvas{
 <!-- AGENTS -->
 <div id="panel-agents" class="panel">
   <div class="card">
-    <h3>Agent performance</h3>
+    <h3>🏆 Agent performance</h3>
     <table><thead><tr><th>Agent</th><th>Type</th><th>Chats</th><th>Completed</th><th>Avg Res</th><th>Median</th><th>75th</th><th>90th</th><th>1st Resp</th><th>Active</th></tr></thead>
     <tbody id="agent-tbody"></tbody></table>
   </div>
   <div class="card" style="margin-top:14px">
-    <h3>Disposition analysis</h3>
+    <h3>📋 Disposition analysis</h3>
     <div id="disp-note" class="warn">Disposition data comes from Tickets All file. Upload it to see this section.</div>
     <div id="disp-content" style="display:none">
       <div class="grid2" style="margin-top:0">
@@ -364,7 +442,7 @@ canvas{
   <div class="info">Score = CSAT 35% + Chats 25% + Resolution 20% + Completion 15% + First Response 10%. Auto-adjusts if no CSAT.</div>
   <div class="kpi-row" id="kpi-efficiency"></div>
   <div class="grid2">
-    <div class="card"><h3>Efficiency score by agent</h3><div class="ch240"><canvas id="c-efficiency"></canvas></div></div>
+    <div class="card"><h3>🏆 Efficiency score by agent</h3><div class="ch240"><canvas id="c-efficiency"></canvas></div></div>
     <div class="card"><h3>Active time vs resolution time</h3><div class="ch240"><canvas id="c-active-vs-res"></canvas></div></div>
   </div>
   <div class="card"><h3>Full efficiency breakdown</h3>
@@ -378,7 +456,7 @@ canvas{
   <div class="info">SLA threshold: 12 minutes. Any chat resolved in more than 12 min = SLA breach.</div>
   <div class="kpi-row" id="kpi-sla" style="grid-template-columns:repeat(5,1fr)"></div>
   <div class="grid2">
-    <div class="card"><h3>SLA compliance by agent</h3>
+    <div class="card"><h3>⏱ SLA compliance by agent</h3>
       <table><thead><tr><th>Agent</th><th>Chats</th><th>Within SLA</th><th>SLA %</th><th>Breached</th><th>Breach %</th><th>Status</th></tr></thead>
       <tbody id="sla-tbody"></tbody></table>
     </div>
@@ -464,7 +542,7 @@ canvas{
     </div>
 
     <div class="card">
-      <h3>Repeat by disposition</h3>
+      <h3>🔁 Repeat by disposition</h3>
       <table>
         <thead>
           <tr>
@@ -955,49 +1033,7 @@ function renderTab(name){
   const hasCsat=wa.some(r=>r.csat!==null);
 
   if(name==='summary'){
-    // Weekly disposition table — uses tktRows for accurate disposition data
-    const wdCard=document.getElementById('weekly-disp-card');
-    if(tktRows&&tktRows.length){
-      wdCard.style.display='block';
-      function cleanPh2(v){if(!v)return'';let s=String(v).replace(/[^0-9]/g,'');if(s.length>10)s=s.slice(-10);return s;}
-      const aaTids=new Set(aaRows?aaRows.map(r=>String(r['Ticket ID']||'').replace('#','').trim()):[]);
-      const dispMap={};
-      tktRows.forEach(r=>{
-        const disp=String(r['Task Names']||r['Disposition: L2 Disposition']||r['Task Name']||'').trim();
-        if(!disp||disp==='undefined')return;
-        const tid=String(r['Ticket Number']||'').trim();
-        const isBot=String(r['Status']||'').toLowerCase().includes('resolved by ai');
-        const isAgent=aaTids.has(tid);
-        const rating=parseFloat(r['CSAT Rating']||r['CSAT']||'');
-        const resMin=null; // resolution time not in tkt
-        if(!dispMap[disp])dispMap[disp]={total:0,bot:0,agent:0,csat:0,dsat:0,res:[]};
-        dispMap[disp].total++;
-        if(isBot)dispMap[disp].bot++;
-        if(isAgent)dispMap[disp].agent++;
-        if(!isNaN(rating)&&rating>=4)dispMap[disp].csat++;
-        if(!isNaN(rating)&&rating>=1&&rating<=3)dispMap[disp].dsat++;
-      });
-      const totalAll=tktRows.length;
-      const sorted=Object.entries(dispMap).sort((a,b)=>b[1].total-a[1].total).slice(0,10);
-      document.getElementById('weekly-disp-tbody').innerHTML=sorted.map(([d,v],i)=>{
-        const pct=totalAll?(v.total/totalAll*100).toFixed(1):0;
-        const botPct=v.total?(v.bot/v.total*100).toFixed(0):0;
-        const agPct=v.total?(v.agent/v.total*100).toFixed(0):0;
-        return`<tr>
-          <td style="color:#94a3b8;font-size:11px">${i+1}</td>
-          <td><strong>${d}</strong></td>
-          <td><span class="badge bb">${v.total}</span></td>
-          <td>${pct}%</td>
-          <td style="color:#7c3aed;font-weight:600">${v.bot} <span style="font-size:10px;color:#94a3b8">(${botPct}%)</span></td>
-          <td style="color:#3b82f6;font-weight:600">${v.agent} <span style="font-size:10px;color:#94a3b8">(${agPct}%)</span></td>
-          <td>-</td>
-          <td style="color:#16a34a;font-weight:600">${v.csat}</td>
-          <td style="color:#dc2626;font-weight:600">${v.dsat}</td>
-        </tr>`;
-      }).join('');
-    } else {
-      wdCard.style.display='none';
-    }
+    
     
     // WEEKLY OPERATIONS OVERVIEW
     const dailyMap = {};
@@ -1077,10 +1113,25 @@ function renderTab(name){
     ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
     .filter(d=>daysUsed.has(d));
 
+    const dateMap = {};
+
+    wa.forEach(r=>{
+      if(!r.startDT)return;
+
+      const dName = dayNames[r.startDT.getDay()];
+      const dNum = r.startDT.getDate();
+      const month = r.startDT.toLocaleString('default',{month:'short'});
+
+      dateMap[dName] = `${dName} ${dNum} ${month}`;
+    });
+
+    const orderedDaysFormatted =
+      orderedDays.map(d=>dateMap[d] || d);
+
     document.getElementById('weekly-disp-head').innerHTML=`
     <tr>
       <th>Disposition</th>
-      ${orderedDays.map(d=>`<th>${d}</th>`).join('')}
+      ${orderedDaysFormatted.map(d=>`<th>${d}</th>`).join('')}
     </tr>
     `;
 
@@ -1095,6 +1146,7 @@ document.getElementById('weekly-disp-body').innerHTML=
       const tb=Object.values(b[1]).reduce((x,y)=>x+y,0);
       return tb-ta;
     })
+    .slice(0,20)
     .map(([disp,data])=>`
     <tr>
       <td><strong>${disp}</strong></td>
@@ -2276,9 +2328,14 @@ document.getElementById('f-tkt').addEventListener('change',function(e){
 </script>
 
 <div style="text-align:center;padding:18px 10px;color:#94a3b8;font-size:11px;font-weight:600;letter-spacing:.08em">
-  ✨ Made on Mars by Celestial ✨
+  ✨  ✨
 </div>
 
+
+<div style="text-align:center;padding:16px 0 26px;color:#94a3b8;font-size:14px">
+Made in Mars by <strong style="color:#0f172a">CELESTIAL</strong>
+</div>
 </body>
+
 
 </html>
