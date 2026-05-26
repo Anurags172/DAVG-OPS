@@ -134,27 +134,6 @@ select{padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:11px
       <div class="card"><h3>Hourly volume</h3><div class="ch200"><canvas id="c-hourly-mini"></canvas></div></div>
     </div>
   </div>
-
-  <!-- WEEKLY DISPOSITION TABLE -->
-  <div class="card" id="weekly-disp-card" style="display:none">
-    <h3>📋 Weekly top 10 dispositions</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Disposition</th>
-          <th>Total</th>
-          <th>% of Week</th>
-          <th>Bot Handled</th>
-          <th>Agent Handled</th>
-          <th>Avg Res (min)</th>
-          <th>CSAT</th>
-          <th>DSAT</th>
-        </tr>
-      </thead>
-      <tbody id="weekly-disp-tbody"></tbody>
-    </table>
-  </div>
 </div>
 
 <!-- RESOLUTION -->
@@ -288,12 +267,6 @@ select{padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:11px
   <div class="grid2">
     <div class="card">
       <h3>Daily incoming vs repeat</h3>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-        <span style="font-size:11px;color:#64748b;font-weight:500">Filter by disposition:</span>
-        <select id="repeat-disp-filter" onchange="filterRepeatChart()" style="font-size:11px;padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;max-width:220px">
-          <option value="all">All Dispositions</option>
-        </select>
-      </div>
       <div class="ch240"><canvas id="c-repeat-daily"></canvas></div>
     </div>
 
@@ -400,42 +373,6 @@ select{padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:11px
 
 </div>
 
-  <!-- COHORT RETENTION TABLE -->
-  <div class="card" style="margin-top:14px">
-    <h3>📅 Bot cohort retention — customer journey Day 1 → Day 7</h3>
-    <div class="info" style="margin-bottom:12px">
-      Shows customers bot closed on Day 1 — how many came back each day for the same issue. 
-      <strong>True Bot Close %</strong> = customers who never came back / total weekly demand.
-    </div>
-    <div id="cohort-warn" class="warn">Upload 2+ days of data to see cohort retention.</div>
-    <div id="cohort-wrap" style="display:none">
-      <div class="kpi-row" id="kpi-cohort" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px"></div>
-      <div style="overflow-x:auto">
-        <table id="cohort-table">
-          <thead id="cohort-thead"></thead>
-          <tbody id="cohort-tbody"></tbody>
-        </table>
-      </div>
-      <div style="margin-top:16px">
-        <h3 style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Daily repeat disposition breakdown</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Day</th>
-              <th>New Bot Closed</th>
-              <th>Returning (same issue)</th>
-              <th>Return %</th>
-              <th>Top Return Disposition</th>
-              <th>Bot Re-closed</th>
-              <th>Agent Closed</th>
-            </tr>
-          </thead>
-          <tbody id="cohort-daily-tbody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
 <!-- ORDERS -->
 
 <div id="panel-orders" class="panel">
@@ -479,20 +416,6 @@ select{padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:11px
     <h3>CSAT & DSAT by agent — detailed</h3>
     <table><thead><tr><th>Agent</th><th>Rated</th><th>CSAT (4-5)</th><th>CSAT %</th><th>DSAT (1-3)</th><th>DSAT %</th><th>Avg Score</th><th>5 Star</th><th>Rating</th></tr></thead>
     <tbody id="csat-agent-tbody"></tbody></table>
-  </div>
-  <div class="card">
-    <h3>7-day CSAT & DSAT trend</h3>
-    <div id="csat-7day-warn" class="warn" style="font-size:11px;margin-bottom:8px">Upload multiple days of data to see the 7-day trend.</div>
-    <div id="csat-7day-wrap" style="display:none">
-      <div style="position:relative;height:220px"><canvas id="c-csat-7day"></canvas></div>
-    </div>
-  </div>
-  <div class="card">
-    <h3>Daily CSAT by agent (multi-day view)</h3>
-    <div id="agent-7day-warn" class="warn" style="font-size:11px;margin-bottom:8px">Upload multiple days of data to see agent daily CSAT breakdown.</div>
-    <div id="agent-7day-wrap" style="display:none">
-      <div style="position:relative;height:260px"><canvas id="c-agent-7day"></canvas></div>
-    </div>
   </div>
   <div class="card" style="margin-top:0"><h3>DSAT follow-up list (ratings 1-3)</h3>
     <table><thead><tr><th>Ticket</th><th>Agent</th><th>Customer</th><th>Rating</th><th>Comment</th><th>Disposition</th><th>Product</th></tr></thead>
@@ -785,49 +708,6 @@ function renderTab(name){
   const hasCsat=wa.some(r=>r.csat!==null);
 
   if(name==='summary'){
-    // Weekly disposition table — uses tktRows for accurate disposition data
-    const wdCard=document.getElementById('weekly-disp-card');
-    if(tktRows&&tktRows.length){
-      wdCard.style.display='block';
-      function cleanPh2(v){if(!v)return'';let s=String(v).replace(/[^0-9]/g,'');if(s.length>10)s=s.slice(-10);return s;}
-      const aaTids=new Set(aaRows?aaRows.map(r=>String(r['Ticket ID']||'').replace('#','').trim()):[]);
-      const dispMap={};
-      tktRows.forEach(r=>{
-        const disp=String(r['Task Names']||r['Disposition: L2 Disposition']||r['Task Name']||'').trim();
-        if(!disp||disp==='undefined')return;
-        const tid=String(r['Ticket Number']||'').trim();
-        const isBot=String(r['Status']||'').toLowerCase().includes('resolved by ai');
-        const isAgent=aaTids.has(tid);
-        const rating=parseFloat(r['CSAT Rating']||r['CSAT']||'');
-        const resMin=null; // resolution time not in tkt
-        if(!dispMap[disp])dispMap[disp]={total:0,bot:0,agent:0,csat:0,dsat:0,res:[]};
-        dispMap[disp].total++;
-        if(isBot)dispMap[disp].bot++;
-        if(isAgent)dispMap[disp].agent++;
-        if(!isNaN(rating)&&rating>=4)dispMap[disp].csat++;
-        if(!isNaN(rating)&&rating>=1&&rating<=3)dispMap[disp].dsat++;
-      });
-      const totalAll=tktRows.length;
-      const sorted=Object.entries(dispMap).sort((a,b)=>b[1].total-a[1].total).slice(0,10);
-      document.getElementById('weekly-disp-tbody').innerHTML=sorted.map(([d,v],i)=>{
-        const pct=totalAll?(v.total/totalAll*100).toFixed(1):0;
-        const botPct=v.total?(v.bot/v.total*100).toFixed(0):0;
-        const agPct=v.total?(v.agent/v.total*100).toFixed(0):0;
-        return`<tr>
-          <td style="color:#94a3b8;font-size:11px">${i+1}</td>
-          <td><strong>${d}</strong></td>
-          <td><span class="badge bb">${v.total}</span></td>
-          <td>${pct}%</td>
-          <td style="color:#7c3aed;font-weight:600">${v.bot} <span style="font-size:10px;color:#94a3b8">(${botPct}%)</span></td>
-          <td style="color:#3b82f6;font-weight:600">${v.agent} <span style="font-size:10px;color:#94a3b8">(${agPct}%)</span></td>
-          <td>-</td>
-          <td style="color:#16a34a;font-weight:600">${v.csat}</td>
-          <td style="color:#dc2626;font-weight:600">${v.dsat}</td>
-        </tr>`;
-      }).join('');
-    } else {
-      wdCard.style.display='none';
-    }
     const comp=wa.filter(r=>r.status==='completed').length;
     const trans=wa.filter(r=>r.status==='transferred').length;
     const m2=med(resTimes),p75=pct(resTimes,75),p90=pct(resTimes,90);
@@ -1224,26 +1104,47 @@ function renderTab(name){
 
     destroyC('c-repeat-daily');
 
-    // Store daily stats globally for filter function
-    window._repeatDailyStats = dailyStats;
-    window._repeatDailyDispositions = repeatDispositions;
-    window._orderedDays = orderedDays;
-
-    // Populate disposition filter dropdown
-    const sel=document.getElementById('repeat-disp-filter');
-    // Only add options if not already populated
-    if(sel.options.length<=1){
-      Object.entries(repeatDispositions)
-        .filter(([,v])=>v.total>0)
-        .sort((a,b)=>b[1].total-a[1].total)
-        .forEach(([d])=>{
-          const opt=document.createElement('option');
-          opt.value=d;opt.textContent=d;
-          sel.appendChild(opt);
-        });
-    }
-
-    renderRepeatDailyChart('all');
+    CH['c-repeat-daily']=new Chart(document.getElementById('c-repeat-daily'),{
+      type:'bar',
+      data:{
+        labels:orderedDays.filter(d=>dailyStats[d]),
+        datasets:[
+          {
+            label:'Incoming',
+            data:orderedDays.filter(d=>dailyStats[d]).map(d=>dailyStats[d].incoming),
+            backgroundColor:'#3b82f6',
+            borderRadius:4
+          },
+          {
+            label:'Daily Repeat',
+            data:orderedDays.filter(d=>dailyStats[d]).map(d=>dailyStats[d].repeat),
+            backgroundColor:'#dc2626',
+            borderRadius:4
+          }
+        ]
+      },
+      options:{
+        responsive:true,
+        maintainAspectRatio:false,
+        plugins:{
+          legend:{
+            position:'bottom',
+            labels:{
+              font:{size:11}
+            }
+          }
+        },
+        scales:{
+          x:{
+            ticks:{font:{size:10}}
+          },
+          y:{
+            beginAtZero:true,
+            ticks:{font:{size:11}}
+          }
+        }
+      }
+    });
   }
 
 
@@ -1367,7 +1268,7 @@ function renderTab(name){
 
     });
 
-    const actualBotHandled = Math.max(0, botHandled-repeat);
+    const actualBotHandled = botHandled-repeat;
 
     const actualPct = totalDemand
       ? ((actualBotHandled/totalDemand)*100).toFixed(1)
@@ -1426,163 +1327,6 @@ function renderTab(name){
   }
 
 
-  // ── COHORT RETENTION ANALYSIS ─────────────────────────────────────────────
-  if(name==='aibot' && tktRows && tktRows.length){
-    const ticketRows = tktRows;
-
-    function cleanPh(v){if(!v)return'';let s=String(v).replace(/[^0-9]/g,'');if(s.length>10)s=s.slice(-10);return s;}
-
-    // Build per-customer per-day journey from Tickets All
-    // Key = phone + disposition, value = array of dates contacted
-    const journeyMap = {};
-    const daySet = new Set();
-
-    ticketRows.forEach(r=>{
-      const phone = cleanPh(r['Customer Phone']||r['Phone']||'');
-      const disp = String(r['Task Names']||r['Task Name']||r['Disposition: L2 Disposition']||'').trim();
-      const status = String(r['Status']||'').toLowerCase();
-      const dateStr = r['Created At']||r['Date']||'';
-      if(!phone||!disp||!dateStr) return;
-
-      let dt;
-      try{dt=new Date(dateStr);}catch(e){return;}
-      if(!dt||isNaN(dt))return;
-
-      const dayKey = dt.toISOString().slice(0,10);
-      daySet.add(dayKey);
-
-      const jKey = phone+'|||'+disp;
-      if(!journeyMap[jKey]){journeyMap[jKey]={phone,disp,days:{},finalStatus:null,finalAgent:null};}
-      if(!journeyMap[jKey].days[dayKey]){
-        journeyMap[jKey].days[dayKey]={status:status,isBot:status.includes('resolved by ai')};
-      }
-    });
-
-    const sortedDays = [...daySet].sort();
-    const numDays = sortedDays.length;
-
-    // Build cohort — customers bot closed on each day
-    // cohort[dayKey] = array of jKeys that were bot-closed that day
-    const cohort = {};
-    sortedDays.forEach(d=>{cohort[d]=[];});
-
-    Object.entries(journeyMap).forEach(([jKey,j])=>{
-      // Find first day this customer+disp appeared
-      const firstDay = Object.keys(j.days).sort()[0];
-      if(!firstDay)return;
-      const firstStatus = j.days[firstDay];
-      if(firstStatus && firstStatus.isBot){
-        cohort[firstDay].push(jKey);
-      }
-    });
-
-    // For each cohort day — how many returned on subsequent days
-    const cohortData = sortedDays.map((startDay,di)=>{
-      const cohortKeys = cohort[startDay]||[];
-      const dayN = {};
-      sortedDays.forEach((d,i)=>{
-        if(i<=di)return; // skip same day and before
-        const returned = cohortKeys.filter(k=>{
-          const j=journeyMap[k];
-          return j.days[d]!==undefined;
-        });
-        const retBotClosed = returned.filter(k=>journeyMap[k].days[d]&&journeyMap[k].days[d].isBot).length;
-        const retAgentClosed = returned.filter(k=>journeyMap[k].days[d]&&!journeyMap[k].days[d].isBot).length;
-        dayN[i-di] = {count:returned.length,bot:retBotClosed,agent:retAgentClosed};
-      });
-      // Top return disposition
-      const dispCount={};
-      cohortKeys.forEach(k=>{
-        Object.keys(journeyMap[k].days).filter(d=>d>startDay).forEach(()=>{
-          const d=journeyMap[k].disp;
-          dispCount[d]=(dispCount[d]||0)+1;
-        });
-      });
-      const topDisp = Object.entries(dispCount).sort((a,b)=>b[1]-a[1])[0];
-      return{day:startDay,cohortSize:cohortKeys.length,returns:dayN,topDisp:topDisp?topDisp[0]:'-'};
-    });
-
-    // Total weekly numbers for True Bot Close %
-    const totalWeekly = ticketRows.length;
-    const totalDay1BotClosed = cohortData.reduce((a,b)=>a+b.cohortSize,0);
-    const totalReturned = cohortData.reduce((a,c)=>{
-      return a+Object.values(c.returns).reduce((x,y)=>x+y.count,0);
-    },0);
-    const trueBotClosed = Math.max(0,totalDay1BotClosed-totalReturned);
-    const trueBotPct = totalWeekly?(trueBotClosed/totalWeekly*100).toFixed(1):0;
-
-    const cohortWarn=document.getElementById('cohort-warn');
-    const cohortWrap=document.getElementById('cohort-wrap');
-    if(numDays<2){cohortWarn.style.display='block';cohortWrap.style.display='none';}
-    else{
-      cohortWarn.style.display='none';cohortWrap.style.display='block';
-
-      // KPIs
-      document.getElementById('kpi-cohort').innerHTML=[
-        {l:'Total Day 1 Bot Closed',v:totalDay1BotClosed,s:'across all days',c:'purple'},
-        {l:'Came Back (same issue)',v:totalReturned,s:(totalDay1BotClosed?(totalReturned/totalDay1BotClosed*100).toFixed(1)+'% return rate':''),c:'red'},
-        {l:'True Bot Closed',v:trueBotClosed,s:'never came back',c:'green'},
-        {l:'True Bot Close %',v:trueBotPct+'%',s:'of total weekly demand',c:parseFloat(trueBotPct)>=20?'green':'amber'},
-      ].map(k=>`<div class="kpi ${k.c}"><div class="lbl">${k.l}</div><div class="val">${k.v}</div><div class="sub">${k.s||''}</div></div>`).join('');
-
-      // Cohort table header — Day+1, Day+2 etc
-      const maxReturn = Math.min(numDays-1, 6);
-      document.getElementById('cohort-thead').innerHTML=`<tr>
-        <th>Cohort Day</th>
-        <th>Bot Closed (N)</th>
-        ${Array.from({length:maxReturn},(_,i)=>`<th>Day +${i+1}</th>`).join('')}
-        <th>Never Returned</th>
-        <th>True Close %</th>
-      </tr>`;
-
-      // Cohort table body
-      document.getElementById('cohort-tbody').innerHTML=cohortData.filter(c=>c.cohortSize>0).map(c=>{
-        const totalRet=Object.values(c.returns).reduce((a,b)=>a+b.count,0);
-        const neverRet=Math.max(0,c.cohortSize-totalRet);
-        const truePct=c.cohortSize?(neverRet/c.cohortSize*100).toFixed(0):0;
-        const dayLabel=new Date(c.day).toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
-        const retCells=Array.from({length:maxReturn},(_,i)=>{
-          const rd=c.returns[i+1];
-          if(!rd||rd.count===0)return`<td style="color:#e2e8f0;text-align:center">—</td>`;
-          const pct=c.cohortSize?(rd.count/c.cohortSize*100).toFixed(0):0;
-          const bg=pct>30?'#fee2e2':pct>15?'#fef3c7':'#dcfce7';
-          const col=pct>30?'#b91c1c':pct>15?'#b45309':'#15803d';
-          return`<td style="text-align:center;background:${bg};color:${col};font-weight:700">${rd.count}<br><span style="font-size:9px">${pct}%</span><br><span style="font-size:9px;color:#64748b">B:${rd.bot} A:${rd.agent}</span></td>`;
-        }).join('');
-        return`<tr>
-          <td><strong>${dayLabel}</strong></td>
-          <td style="font-weight:700;color:#7c3aed">${c.cohortSize}</td>
-          ${retCells}
-          <td style="font-weight:700;color:#16a34a;text-align:center">${neverRet}</td>
-          <td style="text-align:center"><span class="badge ${truePct>=70?'bg':truePct>=50?'ba':'br'}">${truePct}%</span></td>
-        </tr>`;
-      }).join('');
-
-      // Daily breakdown table
-      document.getElementById('cohort-daily-tbody').innerHTML=cohortData.filter(c=>c.cohortSize>0).map((c,di)=>{
-        const totalRet=Object.values(c.returns).reduce((a,b)=>a+b.count,0);
-        const retPct=c.cohortSize?(totalRet/c.cohortSize*100).toFixed(1):0;
-        // How many from previous cohorts returned on THIS day
-        let returnedToday=0,botReClosed=0,agentClosed2=0;
-        cohortData.forEach((prev,pi)=>{
-          if(pi>=di)return;
-          const r=prev.returns[di-pi];
-          if(r){returnedToday+=r.count;botReClosed+=r.bot;agentClosed2+=r.agent;}
-        });
-        const dayLabel=new Date(c.day).toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
-        return`<tr>
-          <td><strong>${dayLabel}</strong></td>
-          <td style="color:#7c3aed;font-weight:700">${c.cohortSize}</td>
-          <td style="color:#dc2626;font-weight:700">${returnedToday}</td>
-          <td><span class="badge ${parseFloat(retPct)<10?'bg':parseFloat(retPct)<25?'ba':'br'}">${retPct}%</span></td>
-          <td style="font-size:11px;color:#64748b;max-width:120px">${c.topDisp}</td>
-          <td style="color:#7c3aed">${botReClosed}</td>
-          <td style="color:#3b82f6">${agentClosed2}</td>
-        </tr>`;
-      }).join('');
-    }
-  }
-
   if(name==='orders'){
     const od=Object.entries(orderFreq).sort((a,b)=>b[1]-a[1]);
     document.getElementById('kpi-orders').innerHTML=[
@@ -1631,106 +1375,6 @@ function renderTab(name){
       const cP=ar.length?good/ar.length*100:0,dP=ar.length?bad/ar.length*100:0;
       return`<tr><td><span class="dot" style="background:${agC(a)}"></span><strong>${a}</strong></td><td>${ar.length}</td><td style="color:#16a34a;font-weight:700">${good}</td><td><span class="badge bg">${cP.toFixed(1)}%</span></td><td style="color:#dc2626;font-weight:700">${bad}</td><td><span class="badge ${dP>30?'br':dP>15?'ba':'bg'}">${dP.toFixed(1)}%</span></td><td style="font-weight:700;color:${avgS>=4?'#16a34a':avgS>=3?'#d97706':'#dc2626'}">${fmt(avgS)}</td><td>${five}</td><td><span class="badge ${avgS>=4.5?'bg':avgS>=4?'bg':avgS>=3?'ba':'br'}">${avgS>=4?'Good':avgS>=3?'Average':'Poor'}</span></td></tr>`;
     }).join('');
-
-    // ── 7-DAY CSAT TREND ─────────────────────────────────────────────────────
-    try{
-    // Use CSAT Submitted At from tktRows for accurate date
-    const csatByDay={};
-    if(tktRows){
-      tktRows.forEach(r=>{
-        const rating=parseFloat(r['CSAT Rating']);
-        if(!rating||isNaN(rating)||rating<1||rating>5) return;
-        const dateStr=r['CSAT Submitted At']||r['Created At']||'';
-        if(!dateStr) return;
-        let d=null;
-        try{d=new Date(dateStr);}catch(e){return;}
-        if(!d||isNaN(d)) return;
-        const key=d.toISOString().slice(0,10); // YYYY-MM-DD
-        if(!csatByDay[key])csatByDay[key]={good:0,bad:0,total:0};
-        csatByDay[key].total++;
-        if(rating>=4)csatByDay[key].good++;
-        else csatByDay[key].bad++;
-      });
-    }
-    // Also pull from wa rows as fallback
-    if(!Object.keys(csatByDay).length){
-      wa.filter(r=>r.csat!==null).forEach(r=>{
-        const d=r.startDT;if(!d)return;
-        const key=d.toISOString().slice(0,10);
-        if(!csatByDay[key])csatByDay[key]={good:0,bad:0,total:0};
-        csatByDay[key].total++;
-        if(r.csat>=4)csatByDay[key].good++;
-        else csatByDay[key].bad++;
-      });
-    }
-    const cdays=Object.keys(csatByDay).sort();
-    const c7warn=document.getElementById('csat-7day-warn');
-    const c7wrap=document.getElementById('csat-7day-wrap');
-    if(cdays.length<2){c7warn.style.display='block';c7wrap.style.display='none';}
-    else{
-      c7warn.style.display='none';c7wrap.style.display='block';
-      destroyC('c-csat-7day');
-      const _el7day=document.getElementById('c-csat-7day');
-      if(!_el7day){return;}
-      CH['c-csat-7day']=new Chart(_el7day,{
-        type:'line',
-        data:{
-          labels:cdays.map(d=>{const dt=new Date(d);return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});}),
-          datasets:[
-            {label:'CSAT (4-5)',data:cdays.map(d=>csatByDay[d].good),borderColor:'#16a34a',backgroundColor:'rgba(22,163,74,.1)',fill:true,tension:.3,pointRadius:5,pointBackgroundColor:'#16a34a'},
-            {label:'DSAT (1-3)',data:cdays.map(d=>csatByDay[d].bad),borderColor:'#dc2626',backgroundColor:'rgba(220,38,38,.1)',fill:true,tension:.3,pointRadius:5,pointBackgroundColor:'#dc2626'},
-            {label:'CSAT %',data:cdays.map(d=>csatByDay[d].total?(csatByDay[d].good/csatByDay[d].total*100).toFixed(1):0),borderColor:'#3b82f6',backgroundColor:'transparent',tension:.3,pointRadius:3,borderDash:[5,5],yAxisID:'y1'}
-          ]
-        },
-        options:{
-          responsive:true,maintainAspectRatio:false,
-          plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12,padding:8}}},
-          scales:{
-            x:{ticks:{font:{size:10}}},
-            y:{ticks:{font:{size:11}},beginAtZero:true,title:{display:true,text:'Count',font:{size:10}}},
-            y1:{ticks:{font:{size:10},callback:v=>v+'%'},beginAtZero:true,max:100,position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'CSAT %',font:{size:10}}}
-          }
-        }
-      });
-    }
-
-    // ── AGENT DAILY CSAT BREAKDOWN ─────────────────────────────────────────
-    const agentByDay={};
-    wa.filter(r=>r.csat!==null&&r.startDT).forEach(r=>{
-      const key=r.startDT.toISOString().slice(0,10);
-      if(!agentByDay[r.agent])agentByDay[r.agent]={};
-      if(!agentByDay[r.agent][key])agentByDay[r.agent][key]={good:0,bad:0};
-      if(r.csat>=4)agentByDay[r.agent][key].good++;
-      else agentByDay[r.agent][key].bad++;
-    });
-    const agDays=[...new Set(wa.filter(r=>r.csat!==null&&r.startDT).map(r=>r.startDT.toISOString().slice(0,10)))].sort();
-    const a7warn=document.getElementById('agent-7day-warn');
-    const a7wrap=document.getElementById('agent-7day-wrap');
-    if(agDays.length<2){a7warn.style.display='block';a7wrap.style.display='none';}
-    else{
-      a7warn.style.display='none';a7wrap.style.display='block';
-      destroyC('c-agent-7day');
-      const _elAg7=document.getElementById('c-agent-7day');
-      if(!_elAg7){return;}
-      CH['c-agent-7day']=new Chart(_elAg7,{
-        type:'bar',
-        data:{
-          labels:agDays.map(d=>{const dt=new Date(d);return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});}),
-          datasets:AGENTS.map(a=>({
-            label:a.split(' ')[0],
-            data:agDays.map(d=>(agentByDay[a]&&agentByDay[a][d])?agentByDay[a][d].good:0),
-            backgroundColor:agC(a),borderRadius:3,stack:'s'
-          }))
-        },
-        options:{
-          responsive:true,maintainAspectRatio:false,
-          plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10,padding:6}}},
-          scales:{x:{ticks:{font:{size:10}},stacked:true},y:{ticks:{font:{size:11}},beginAtZero:true,stacked:true}}
-        }
-      });
-    }
-
-    }catch(e){console.warn('7-day chart error:',e);}
     document.getElementById('dsat-tbody').innerHTML=wa.filter(r=>r.csat!==null&&r.csat<=3).sort((a,b)=>a.csat-b.csat).slice(0,50).map(r=>`<tr><td>${r.ticketId}</td><td>${r.agent}</td><td>${r.customer||'-'}</td><td><span class="badge ${r.csat<=2?'br':'ba'}">${r.csat} Star</span></td><td style="font-size:10px;color:#64748b">-</td><td style="font-size:10px;color:#64748b">${r.disposition||'-'}</td><td style="font-size:10px;color:#64748b">${r.product||'-'}</td></tr>`).join('');
   }
 
@@ -1789,62 +1433,6 @@ function renderTab(name){
 
     destroyC('c-heatmap');CH['c-heatmap']=new Chart(document.getElementById('c-heatmap'),{type:'bar',data:{labels:hours.map(h=>h+':00'),datasets:AGENTS.map(a=>({label:a.split(' ')[0],data:hours.map(h=>wa.filter(r=>r.hour===h&&r.agent===a).length),backgroundColor:agC(a),borderRadius:2,stack:'s'}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10,padding:6}}},scales:{x:{ticks:{font:{size:10},autoSkip:false},stacked:true},y:{ticks:{font:{size:11}},beginAtZero:true,stacked:true}}}});
   }
-}
-
-// ─── REPEAT CHART FILTER ─────────────────────────────────────────────────────
-function filterRepeatChart(){
-  const sel=document.getElementById('repeat-disp-filter');
-  renderRepeatDailyChart(sel?sel.value:'all');
-}
-
-function renderRepeatDailyChart(dispFilter){
-  const dailyStats=window._repeatDailyStats||{};
-  const orderedDays=window._orderedDays||['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-
-  // If filtering by disposition — need per-day disposition stats
-  // We rebuild per-day filtered data from wa
-  if(!G)return;
-  const wa=G.wa;
-
-  let incomingData, repeatData, labels;
-
-  if(dispFilter==='all'){
-    labels=orderedDays.filter(d=>dailyStats[d]);
-    incomingData=labels.map(d=>dailyStats[d].incoming);
-    repeatData=labels.map(d=>dailyStats[d].repeat);
-  } else {
-    // Per day filtered by specific disposition
-    const dowNames=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-    const filteredStats={};
-    wa.forEach(r=>{
-      if(!r.startDT)return;
-      if(r.disposition!==dispFilter)return;
-      const day=dowNames[r.startDT.getDay()];
-      if(!filteredStats[day])filteredStats[day]={incoming:0,repeat:0};
-      filteredStats[day].incoming++;
-      if(r.dailyRepeat)filteredStats[day].repeat++;
-    });
-    labels=orderedDays.filter(d=>filteredStats[d]);
-    incomingData=labels.map(d=>filteredStats[d].incoming);
-    repeatData=labels.map(d=>filteredStats[d].repeat);
-  }
-
-  destroyC('c-repeat-daily');
-  CH['c-repeat-daily']=new Chart(document.getElementById('c-repeat-daily'),{
-    type:'bar',
-    data:{
-      labels,
-      datasets:[
-        {label:'Incoming'+(dispFilter!=='all'?' ('+dispFilter+')':''),data:incomingData,backgroundColor:'#3b82f6',borderRadius:4},
-        {label:'Daily Repeat'+(dispFilter!=='all'?' ('+dispFilter+')':''),data:repeatData,backgroundColor:'#dc2626',borderRadius:4}
-      ]
-    },
-    options:{
-      responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12,padding:8}}},
-      scales:{x:{ticks:{font:{size:10}}},y:{beginAtZero:true,ticks:{font:{size:11}}}}
-    }
-  });
 }
 
 // ─── FILE UPLOAD ──────────────────────────────────────────────────────────────
