@@ -74,230 +74,6 @@ input[type=file]{display:none}
 input[type=text]{padding:5px 9px;border:1px solid #e5e7eb;border-radius:6px;font-size:11px;width:180px}
 select{padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:11px;background:#fff;cursor:pointer}
 @media(max-width:768px){.grid2,.grid3{grid-template-columns:1fr}}
-
-
-/* ─── PREMIUM TAB HOVER ───────────────────── */
-.tab{
-  transition:
-    transform .18s ease,
-    color .18s ease,
-    background .18s ease;
-  border-radius:8px 8px 0 0;
-}
-
-.tab:hover{
-  transform:translateY(-3px) scale(1.03);
-  background:rgba(59,130,246,.06);
-}
-
-/* ─── DRAMATIC AOD REVEAL ─────────────────── */
-@keyframes dramaticReveal{
-  0%{
-    opacity:0;
-    transform:translateY(24px) scale(.96);
-    filter:blur(10px);
-  }
-
-  45%{
-    opacity:.2;
-    filter:blur(6px);
-  }
-
-  70%{
-    opacity:.6;
-    filter:blur(2px);
-  }
-
-  100%{
-    opacity:1;
-    transform:translateY(0) scale(1);
-    filter:blur(0);
-  }
-}
-
-.aod-name{
-  opacity:0;
-  animation:dramaticReveal 5s ease forwards;
-  animation-delay:.2s;
-  letter-spacing:.02em;
-}
-
-.aod-score{
-  opacity:0;
-  animation:dramaticReveal 3.5s ease forwards;
-  animation-delay:1.1s;
-}
-
-.aod-stat{
-  opacity:0;
-  animation:fadeUp .7s ease forwards;
-}
-
-.aod-stat:nth-child(1){animation-delay:2s}
-.aod-stat:nth-child(2){animation-delay:2.3s}
-.aod-stat:nth-child(3){animation-delay:2.6s}
-.aod-stat:nth-child(4){animation-delay:2.9s}
-
-/* ─── ANIMATIONS ───────────────────────────── */
-@keyframes fadeUp{
-  from{
-    opacity:0;
-    transform:translateY(14px);
-  }
-  to{
-    opacity:1;
-    transform:translateY(0);
-  }
-}
-
-@keyframes glowPulse{
-  0%{box-shadow:0 0 0 rgba(59,130,246,0)}
-  50%{box-shadow:0 0 18px rgba(59,130,246,.18)}
-  100%{box-shadow:0 0 0 rgba(59,130,246,0)}
-}
-
-.card{
-  animation:fadeUp .45s ease both;
-}
-
-.kpi{
-  animation:fadeUp .45s ease both;
-  transition:transform .18s ease, box-shadow .18s ease;
-}
-
-.kpi:hover{
-  transform:translateY(-3px);
-  box-shadow:0 8px 24px rgba(15,23,42,.08);
-}
-
-table tbody tr{
-  animation:fadeUp .4s ease both;
-}
-
-.tab{
-  transition:all .2s ease;
-}
-
-.tab:hover{
-  transform:translateY(-1px);
-}
-
-.aod-card{
-  animation:fadeUp .7s ease both, glowPulse 3s infinite;
-}
-
-#eff-tbody tr{
-  opacity:0;
-  animation:fadeUp .5s ease forwards;
-}
-
-#eff-tbody tr:nth-child(1){animation-delay:.05s}
-#eff-tbody tr:nth-child(2){animation-delay:.10s}
-#eff-tbody tr:nth-child(3){animation-delay:.15s}
-#eff-tbody tr:nth-child(4){animation-delay:.20s}
-#eff-tbody tr:nth-child(5){animation-delay:.25s}
-#eff-tbody tr:nth-child(6){animation-delay:.30s}
-#eff-tbody tr:nth-child(7){animation-delay:.35s}
-#eff-tbody tr:nth-child(8){animation-delay:.40s}
-#eff-tbody tr:nth-child(9){animation-delay:.45s}
-#eff-tbody tr:nth-child(10){animation-delay:.50s}
-
-canvas{
-  animation:fadeUp .6s ease both;
-}
-
-
-
-/* ─── PREMIUM ICON GLOW SYSTEM ───────────────── */
-.card h3{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  transition:all .25s ease;
-}
-
-.card:hover h3{
-  transform:translateX(2px);
-}
-
-#panel-efficiency .card h3:hover{
-  text-shadow:0 0 10px rgba(245,158,11,.35);
-}
-
-#panel-aibot .card h3:hover{
-  text-shadow:0 0 10px rgba(139,92,246,.35);
-}
-
-#panel-hourly .card h3:hover{
-  text-shadow:0 0 10px rgba(59,130,246,.35);
-}
-
-#panel-sla .card h3:hover{
-  text-shadow:0 0 10px rgba(34,197,94,.35);
-}
-
-#panel-repeat .card h3:hover{
-  text-shadow:0 0 10px rgba(239,68,68,.35);
-}
-
-
-
-/* ===== CELESTIAL PREMIUM EFFECTS ===== */
-
-.tab{
- transition:all .22s ease !important;
-}
-
-.tab:hover{
- transform:translateY(-4px) scale(1.04) !important;
- background:rgba(59,130,246,.08) !important;
- border-radius:10px 10px 0 0 !important;
- box-shadow:0 8px 18px rgba(59,130,246,.15) !important;
-}
-
-.card{
- transition:all .25s ease !important;
-}
-
-.card:hover{
- transform:translateY(-3px) !important;
- box-shadow:0 14px 30px rgba(15,23,42,.08) !important;
-}
-
-#panel-efficiency .card:hover{
- border-color:#f59e0b !important;
- box-shadow:0 0 18px rgba(245,158,11,.18) !important;
-}
-
-#panel-aibot .card:hover{
- border-color:#8b5cf6 !important;
- box-shadow:0 0 18px rgba(139,92,246,.18) !important;
-}
-
-#panel-hourly .card:hover{
- border-color:#3b82f6 !important;
- box-shadow:0 0 18px rgba(59,130,246,.18) !important;
-}
-
-#panel-sla .card:hover{
- border-color:#22c55e !important;
- box-shadow:0 0 18px rgba(34,197,94,.18) !important;
-}
-
-#panel-repeat .card:hover{
- border-color:#ef4444 !important;
- box-shadow:0 0 18px rgba(239,68,68,.18) !important;
-}
-
-.card h3{
- transition:all .25s ease !important;
-}
-
-.card:hover h3{
- transform:translateX(4px) !important;
- letter-spacing:.04em !important;
-}
-
 </style>
 </head>
 <body>
@@ -350,55 +126,35 @@ canvas{
   <div id="summary-data" style="display:none">
     <div class="kpi-row" id="kpi-summary"></div>
     <div class="grid2">
-      <div class="card"><h3>📊 Resolution time distribution</h3><div class="ch200"><canvas id="c-dist"></canvas></div></div>
-      <div class="card"><h3>📈 Chats by status</h3><div class="ch200"><canvas id="c-status"></canvas></div></div>
+      <div class="card"><h3>Resolution time distribution</h3><div class="ch200"><canvas id="c-dist"></canvas></div></div>
+      <div class="card"><h3>Chats by status</h3><div class="ch200"><canvas id="c-status"></canvas></div></div>
     </div>
     <div class="grid2">
-      <div class="card"><h3>👥 Chats per agent</h3><div class="ch200"><canvas id="c-agent-vol"></canvas></div></div>
-      <div class="card"><h3>⚡ Hourly volume</h3><div class="ch200"><canvas id="c-hourly-mini"></canvas></div></div>
+      <div class="card"><h3>Chats per agent</h3><div class="ch200"><canvas id="c-agent-vol"></canvas></div></div>
+      <div class="card"><h3>Hourly volume</h3><div class="ch200"><canvas id="c-hourly-mini"></canvas></div></div>
     </div>
   </div>
 
-  
-
-
-
-
-<div class="card" id="weekly-ops-card" style="display:none">
-  <h3>📈 Weekly operations overview</h3>
-
-  <table>
-    <thead>
-      <tr>
-        <th>Day</th>
-        <th>Incoming</th>
-        <th>Avg CSAT</th>
-        <th>Avg Wait</th>
-        <th>Top Disposition</th>
-      </tr>
-    </thead>
-
-    <tbody id="ops-weekly-body"></tbody>
-  </table>
-</div>
-
-<div class="card" id="weekly-disp-break-card" style="display:none">
-  <h3>📋 Weekly disposition breakdown</h3>
-
-  <div class="toggle-row" style="margin-top:-4px;margin-bottom:10px">
-    <button class="tog-btn active">Weekly</button>
-    <button class="tog-btn">Daily</button>
-    <span style="font-size:10px;color:#94a3b8">Top 20 dispositions only</span>
-  </div>
-
-  <div style="overflow-x:auto">
-    <table id="weekly-disp-matrix">
-      <thead id="weekly-disp-head"></thead>
-      <tbody id="weekly-disp-body"></tbody>
+  <!-- WEEKLY DISPOSITION TABLE -->
+  <div class="card" id="weekly-disp-card" style="display:none">
+    <h3>📋 Weekly top 10 dispositions</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Disposition</th>
+          <th>Total</th>
+          <th>% of Week</th>
+          <th>Bot Handled</th>
+          <th>Agent Handled</th>
+          <th>Avg Res (min)</th>
+          <th>CSAT</th>
+          <th>DSAT</th>
+        </tr>
+      </thead>
+      <tbody id="weekly-disp-tbody"></tbody>
     </table>
   </div>
-</div>
-
 </div>
 
 <!-- RESOLUTION -->
@@ -413,12 +169,12 @@ canvas{
 <!-- AGENTS -->
 <div id="panel-agents" class="panel">
   <div class="card">
-    <h3>🏆 Agent performance</h3>
+    <h3>Agent performance</h3>
     <table><thead><tr><th>Agent</th><th>Type</th><th>Chats</th><th>Completed</th><th>Avg Res</th><th>Median</th><th>75th</th><th>90th</th><th>1st Resp</th><th>Active</th></tr></thead>
     <tbody id="agent-tbody"></tbody></table>
   </div>
   <div class="card" style="margin-top:14px">
-    <h3>📋 Disposition analysis</h3>
+    <h3>Disposition analysis</h3>
     <div id="disp-note" class="warn">Disposition data comes from Tickets All file. Upload it to see this section.</div>
     <div id="disp-content" style="display:none">
       <div class="grid2" style="margin-top:0">
@@ -442,7 +198,7 @@ canvas{
   <div class="info">Score = CSAT 35% + Chats 25% + Resolution 20% + Completion 15% + First Response 10%. Auto-adjusts if no CSAT.</div>
   <div class="kpi-row" id="kpi-efficiency"></div>
   <div class="grid2">
-    <div class="card"><h3>🏆 Efficiency score by agent</h3><div class="ch240"><canvas id="c-efficiency"></canvas></div></div>
+    <div class="card"><h3>Efficiency score by agent</h3><div class="ch240"><canvas id="c-efficiency"></canvas></div></div>
     <div class="card"><h3>Active time vs resolution time</h3><div class="ch240"><canvas id="c-active-vs-res"></canvas></div></div>
   </div>
   <div class="card"><h3>Full efficiency breakdown</h3>
@@ -456,7 +212,7 @@ canvas{
   <div class="info">SLA threshold: 12 minutes. Any chat resolved in more than 12 min = SLA breach.</div>
   <div class="kpi-row" id="kpi-sla" style="grid-template-columns:repeat(5,1fr)"></div>
   <div class="grid2">
-    <div class="card"><h3>⏱ SLA compliance by agent</h3>
+    <div class="card"><h3>SLA compliance by agent</h3>
       <table><thead><tr><th>Agent</th><th>Chats</th><th>Within SLA</th><th>SLA %</th><th>Breached</th><th>Breach %</th><th>Status</th></tr></thead>
       <tbody id="sla-tbody"></tbody></table>
     </div>
@@ -542,7 +298,7 @@ canvas{
     </div>
 
     <div class="card">
-      <h3>🔁 Repeat by disposition</h3>
+      <h3>Repeat by disposition</h3>
       <table>
         <thead>
           <tr>
@@ -621,39 +377,6 @@ canvas{
     </div>
   </div>
 
-  <div class="grid2">
-    <div class="card">
-      <h3>🤖 Bot Efficiency — Daily</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Day</th>
-            <th>AI Customers</th>
-            <th>Contained</th>
-            <th>Efficiency %</th>
-          </tr>
-        </thead>
-        <tbody id="ai-efficiency-body"></tbody>
-      </table>
-    </div>
-
-    <div class="card">
-      <h3>📦 Operational Relief — Daily</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Day</th>
-            <th>Total Demand</th>
-            <th>Contained</th>
-            <th>Relief %</th>
-          </tr>
-        </thead>
-        <tbody id="ai-relief-body"></tbody>
-      </table>
-    </div>
-  </div>
-
-
   <div class="card">
     <h3>📈 Top 10 Task Intelligence</h3>
 
@@ -676,6 +399,43 @@ canvas{
   </div>
 
 </div>
+
+  <!-- COHORT RETENTION TABLE -->
+  <div class="card" style="margin-top:14px">
+    <h3>📅 Bot cohort retention — customer journey Day 1 → Day 7</h3>
+    <div class="info" style="margin-bottom:12px">
+      Shows customers bot closed on Day 1 — how many came back each day for the same issue. 
+      <strong>True Bot Close %</strong> = customers who never came back / total weekly demand.
+    </div>
+    <div id="cohort-warn" class="warn">Upload 2+ days of data to see cohort retention.</div>
+    <div id="cohort-wrap" style="display:none">
+      <div class="kpi-row" id="kpi-cohort" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px"></div>
+      <div style="overflow-x:auto">
+        <table id="cohort-table">
+          <thead id="cohort-thead"></thead>
+          <tbody id="cohort-tbody"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:16px">
+        <h3 style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Daily repeat disposition breakdown</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Day</th>
+              <th>New Bot Closed</th>
+              <th>Returning (same issue)</th>
+              <th>Return %</th>
+              <th>Top Return Disposition</th>
+              <th>Bot Re-closed</th>
+              <th>Agent Closed</th>
+            </tr>
+          </thead>
+          <tbody id="cohort-daily-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
 <!-- ORDERS -->
 
 <div id="panel-orders" class="panel">
@@ -781,16 +541,8 @@ function isNew(n){const k=n.toLowerCase();return NEW_KEYWORDS.some(x=>k.includes
 function showTab(n,el){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-
   el.classList.add('active');
-
-  const panel = document.getElementById('panel-'+n);
-  panel.classList.add('active');
-
-  panel.style.animation='none';
-  panel.offsetHeight;
-  panel.style.animation='fadeUp .35s ease';
-
+  document.getElementById('panel-'+n).classList.add('active');
   if(G)renderTab(n);
 }
 
@@ -1033,127 +785,49 @@ function renderTab(name){
   const hasCsat=wa.some(r=>r.csat!==null);
 
   if(name==='summary'){
-    
-    
-    // WEEKLY OPERATIONS OVERVIEW
-    const dailyMap = {};
-    const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-
-    wa.forEach(r=>{
-      if(!r.startDT)return;
-
-      const d = r.startDT.getDay();
-
-      if(!dailyMap[d]){
-        dailyMap[d]={
-          incoming:0,
-          csat:[],
-          wait:[],
-          dispositions:{}
-        };
-      }
-
-      dailyMap[d].incoming++;
-
-      if(r.csat!==null){
-        dailyMap[d].csat.push(r.csat);
-      }
-
-      if(r.waitMin!==null){
-        dailyMap[d].wait.push(r.waitMin);
-      }
-
-      if(r.disposition){
-        dailyMap[d].dispositions[r.disposition]=(dailyMap[d].dispositions[r.disposition]||0)+1;
-      }
-    });
-
-    document.getElementById('ops-weekly-body').innerHTML =
-    Object.keys(dailyMap)
-    .sort((a,b)=>a-b)
-    .map(d=>{
-
-      const row=dailyMap[d];
-
-      const topDisp=Object.entries(row.dispositions)
-        .sort((a,b)=>b[1]-a[1])[0];
-
-      return `
-        <tr>
-          <td><strong>${dayNames[d]}</strong></td>
-          <td>${row.incoming}</td>
-          <td>${row.csat.length?fmt(avg(row.csat),1):'-'}</td>
-          <td>${row.wait.length?fmt(avg(row.wait),1)+' min':'-'}</td>
-          <td>${topDisp?topDisp[0]:'-'}</td>
-        </tr>
-      `;
-    }).join('');
-
-    // WEEKLY DISPOSITION MATRIX
-
-    const dispMatrix = {};
-    const daysUsed = new Set();
-
-    wa.forEach(r=>{
-
-      if(!r.startDT || !r.disposition)return;
-
-      const day = dayNames[r.startDT.getDay()];
-      daysUsed.add(day);
-
-      if(!dispMatrix[r.disposition]){
-        dispMatrix[r.disposition]={};
-      }
-
-      dispMatrix[r.disposition][day] =
-        (dispMatrix[r.disposition][day]||0)+1;
-    });
-
-    const orderedDays =
-    ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
-    .filter(d=>daysUsed.has(d));
-
-    const dateMap = {};
-
-    wa.forEach(r=>{
-      if(!r.startDT)return;
-
-      const dName = dayNames[r.startDT.getDay()];
-      const dNum = r.startDT.getDate();
-      const month = r.startDT.toLocaleString('default',{month:'short'});
-
-      dateMap[dName] = `${dName} ${dNum} ${month}`;
-    });
-
-    const orderedDaysFormatted =
-      orderedDays.map(d=>dateMap[d] || d);
-
-    document.getElementById('weekly-disp-head').innerHTML=`
-    <tr>
-      <th>Disposition</th>
-      ${orderedDaysFormatted.map(d=>`<th>${d}</th>`).join('')}
-    </tr>
-    `;
-
-    
-document.getElementById('weekly-ops-card').style.display='block';
-document.getElementById('weekly-disp-break-card').style.display='block';
-
-document.getElementById('weekly-disp-body').innerHTML=
-    Object.entries(dispMatrix)
-    .sort((a,b)=>{
-      const ta=Object.values(a[1]).reduce((x,y)=>x+y,0);
-      const tb=Object.values(b[1]).reduce((x,y)=>x+y,0);
-      return tb-ta;
-    })
-    .slice(0,20)
-    .map(([disp,data])=>`
-    <tr>
-      <td><strong>${disp}</strong></td>
-      ${orderedDays.map(d=>`<td>${data[d]||0}</td>`).join('')}
-    </tr>
-    `).join('');
-
+    // Weekly disposition table — uses tktRows for accurate disposition data
+    const wdCard=document.getElementById('weekly-disp-card');
+    if(tktRows&&tktRows.length){
+      wdCard.style.display='block';
+      function cleanPh2(v){if(!v)return'';let s=String(v).replace(/[^0-9]/g,'');if(s.length>10)s=s.slice(-10);return s;}
+      const aaTids=new Set(aaRows?aaRows.map(r=>String(r['Ticket ID']||'').replace('#','').trim()):[]);
+      const dispMap={};
+      tktRows.forEach(r=>{
+        const disp=String(r['Task Names']||r['Disposition: L2 Disposition']||r['Task Name']||'').trim();
+        if(!disp||disp==='undefined')return;
+        const tid=String(r['Ticket Number']||'').trim();
+        const isBot=String(r['Status']||'').toLowerCase().includes('resolved by ai');
+        const isAgent=aaTids.has(tid);
+        const rating=parseFloat(r['CSAT Rating']||r['CSAT']||'');
+        const resMin=null; // resolution time not in tkt
+        if(!dispMap[disp])dispMap[disp]={total:0,bot:0,agent:0,csat:0,dsat:0,res:[]};
+        dispMap[disp].total++;
+        if(isBot)dispMap[disp].bot++;
+        if(isAgent)dispMap[disp].agent++;
+        if(!isNaN(rating)&&rating>=4)dispMap[disp].csat++;
+        if(!isNaN(rating)&&rating>=1&&rating<=3)dispMap[disp].dsat++;
+      });
+      const totalAll=tktRows.length;
+      const sorted=Object.entries(dispMap).sort((a,b)=>b[1].total-a[1].total).slice(0,10);
+      document.getElementById('weekly-disp-tbody').innerHTML=sorted.map(([d,v],i)=>{
+        const pct=totalAll?(v.total/totalAll*100).toFixed(1):0;
+        const botPct=v.total?(v.bot/v.total*100).toFixed(0):0;
+        const agPct=v.total?(v.agent/v.total*100).toFixed(0):0;
+        return`<tr>
+          <td style="color:#94a3b8;font-size:11px">${i+1}</td>
+          <td><strong>${d}</strong></td>
+          <td><span class="badge bb">${v.total}</span></td>
+          <td>${pct}%</td>
+          <td style="color:#7c3aed;font-weight:600">${v.bot} <span style="font-size:10px;color:#94a3b8">(${botPct}%)</span></td>
+          <td style="color:#3b82f6;font-weight:600">${v.agent} <span style="font-size:10px;color:#94a3b8">(${agPct}%)</span></td>
+          <td>-</td>
+          <td style="color:#16a34a;font-weight:600">${v.csat}</td>
+          <td style="color:#dc2626;font-weight:600">${v.dsat}</td>
+        </tr>`;
+      }).join('');
+    } else {
+      wdCard.style.display='none';
+    }
     const comp=wa.filter(r=>r.status==='completed').length;
     const trans=wa.filter(r=>r.status==='transferred').length;
     const m2=med(resTimes),p75=pct(resTimes,75),p90=pct(resTimes,90);
@@ -1727,119 +1401,7 @@ document.getElementById('weekly-disp-body').innerHTML=
         </tr>
       `).join('');
 
-    
-    // ── DAILY BOT EFFICIENCY + OPERATIONAL RELIEF ─────────────────────
-
-    const dailyAI = {};
-    const dailyDemand = {};
-
-    // Total demand by day
-    ticketRows.forEach(r=>{
-
-      const rawDate =
-        r['Created At'] ||
-        r['CreatedAt'] ||
-        r['Date'] ||
-        r['created_at'];
-
-      const dt = parseDT(rawDate);
-
-      if(!dt)return;
-
-      const day = dt.toLocaleDateString(
-        'en-US',
-        {month:'short',day:'numeric'}
-      );
-
-      dailyDemand[day] = (dailyDemand[day] || 0) + 1;
-    });
-
-    // AI journey tracking
-    aiRows.forEach(r=>{
-
-      const rawDate =
-        r['Created At'] ||
-        r['CreatedAt'] ||
-        r['Date'] ||
-        r['created_at'];
-
-      const dt = parseDT(rawDate);
-
-      if(!dt)return;
-
-      const day = dt.toLocaleDateString(
-        'en-US',
-        {month:'short',day:'numeric'}
-      );
-
-      const phone = cleanPhone(
-        r['Customer Phone'] ||
-        r['Phone']
-      );
-
-      if(!phone)return;
-
-      if(!dailyAI[day]){
-        dailyAI[day]={
-          ai:new Set(),
-          contained:new Set()
-        };
-      }
-
-      dailyAI[day].ai.add(phone);
-
-      if(!agentPhones.has(phone)){
-        dailyAI[day].contained.add(phone);
-      }
-
-    });
-
-    // Render efficiency table
-    document.getElementById('ai-efficiency-body').innerHTML =
-      Object.entries(dailyAI)
-      .map(([day,v])=>{
-
-        const aiCount = v.ai.size;
-        const contained = v.contained.size;
-
-        const eff = aiCount
-          ? ((contained/aiCount)*100).toFixed(1)
-          : '0';
-
-        return `
-          <tr>
-            <td><strong>${day}</strong></td>
-            <td>${aiCount}</td>
-            <td style="color:#16a34a;font-weight:700">${contained}</td>
-            <td>${eff}%</td>
-          </tr>
-        `;
-      }).join('');
-
-    // Render operational relief table
-    document.getElementById('ai-relief-body').innerHTML =
-      Object.entries(dailyAI)
-      .map(([day,v])=>{
-
-        const contained = v.contained.size;
-        const demand = dailyDemand[day] || 0;
-
-        const relief = demand
-          ? ((contained/demand)*100).toFixed(2)
-          : '0';
-
-        return `
-          <tr>
-            <td><strong>${day}</strong></td>
-            <td>${demand}</td>
-            <td style="color:#16a34a;font-weight:700">${contained}</td>
-            <td>${relief}%</td>
-          </tr>
-        `;
-      }).join('');
-
-
-document.getElementById('ai-survey-body').innerHTML = `
+    document.getElementById('ai-survey-body').innerHTML = `
       <tr><td>Total Surveys</td><td>${surveys}</td></tr>
       <tr><td>CSAT</td><td>${csat}</td></tr>
       <tr><td>DSAT</td><td>${dsat}</td></tr>
@@ -2326,16 +1888,5 @@ document.getElementById('f-tkt').addEventListener('change',function(e){
   });
 });
 </script>
-
-<div style="text-align:center;padding:18px 10px;color:#94a3b8;font-size:11px;font-weight:600;letter-spacing:.08em">
-  ✨  ✨
-</div>
-
-
-<div style="text-align:center;padding:16px 0 26px;color:#94a3b8;font-size:14px">
-Made in Mars by <strong style="color:#0f172a">CELESTIAL</strong>
-</div>
 </body>
-
-
 </html>
