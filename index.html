@@ -7,8 +7,111 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f4f5f7;color:#1a1a1a;font-size:14px}
+
+:root{
+  --bg:#f4f5f7;
+  --surface:#ffffff;
+  --surface-alt:#f8fafc;
+
+  --text:#1a1a1a;
+  --muted:#64748b;
+  --border:#e5e7eb;
+
+  --blue:#3b82f6;
+  --green:#22c55e;
+  --red:#ef4444;
+  --amber:#f59e0b;
+  --purple:#8b5cf6;
+  --teal:#14b8a6;
+
+  --shadow-soft:0 8px 24px rgba(15,23,42,.08);
+  --shadow-hover:0 14px 30px rgba(15,23,42,.12);
+
+  --radius-sm:8px;
+  --radius-md:10px;
+  --radius-lg:14px;
+
+  --fast:.18s ease;
+  --normal:.25s ease;
+
+}
+
+/* ─── DESIGN SYSTEM UTILITIES ───────────────────────────── */
+
+.mt-0{margin-top:0}
+.mt-10{margin-top:10px}
+.mt-14{margin-top:14px}
+.mb-8{margin-bottom:8px}
+
+.text-xs{font-size:10px}
+.text-sm{font-size:11px}
+
+.text-muted{color:var(--muted)}
+
+.uppercase-label{
+  font-size:10px;
+  font-weight:700;
+  color:var(--muted);
+  text-transform:uppercase;
+  margin-bottom:8px;
+  letter-spacing:.05em;
+}
+
+.flex-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.table-wrap{
+  overflow-x:auto;
+}
+
+.card-premium{
+  border:1px solid var(--border);
+  background:var(--surface);
+}
+
+.card-compact{
+  padding:12px 14px;
+}
+
+.table-standard{
+  width:100%;
+  border-collapse:collapse;
+  font-size:12px;
+}
+
+.table-standard th{
+  text-align:left;
+  padding:8px 10px;
+  background:#f8fafc;
+  font-weight:700;
+  font-size:10px;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  border-bottom:2px solid #e5e7eb;
+  white-space:nowrap;
+}
+
+.table-standard td{
+  padding:8px 10px;
+  border-bottom:1px solid #f1f5f9;
+  color:#374151;
+}
+
+.table-standard tr:hover td{
+  background:#fafafa;
+}
+
+.table-standard tr:last-child td{
+  border-bottom:none;
+}
+
+
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:#1a1a1a;font-size:14px}
 .topbar{background:#0f172a;color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;position:sticky;top:0;z-index:100}
 .topbar h1{font-size:16px;font-weight:700}
 .topbar .sub{font-size:11px;opacity:.55;margin-top:2px}
@@ -16,17 +119,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 
 .upload-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.upload-box{background:#1e293b;border:1.5px dashed #475569;border-radius:8px;padding:7px 12px;cursor:pointer;font-size:11px;color:#94a3b8;text-align:center;min-width:130px;transition:all .2s}
+.upload-box{background:#1e293b;border:1.5px dashed #475569;border-radius:8px;padding:7px 12px;cursor:pointer;font-size:11px;color:#94a3b8;text-align:center;min-width:130px;transition:border-color .2s ease,color .2s ease,transform .2s ease}
 .upload-box:hover{border-color:#3b82f6;color:#60a5fa}
 .upload-box.loaded{border-color:#22c55e;color:#22c55e;border-style:solid}
 .upload-box input{display:none}
-.tabs{background:#fff;border-bottom:2px solid #e5e7eb;padding:0 20px;display:flex;overflow-x:auto;position:sticky;top:53px;z-index:99}
-.tab{padding:12px 15px;cursor:pointer;font-size:12px;font-weight:500;color:#64748b;border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap}
+.tabs{background:var(--surface);border-bottom:2px solid #e5e7eb;padding:0 20px;display:flex;overflow-x:auto;position:sticky;top:53px;z-index:99}
+.tab{padding:12px 15px;cursor:pointer;font-size:12px;font-weight:500;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap}
 .tab:hover{color:#0f172a}
 .tab.active{color:#0f172a;border-bottom-color:#3b82f6;font-weight:700}
 .content{padding:18px 22px;max-width:1440px;margin:0 auto}
 .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:18px}
-.kpi{background:#fff;border-radius:10px;padding:14px 15px;border:1px solid #e5e7eb;position:relative;overflow:hidden}
+.kpi{background:var(--surface);border-radius:var(--radius-md);padding:14px 15px;border:1px solid var(--border);position:relative;overflow:hidden}
 .kpi::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%;background:var(--ac,#cbd5e1)}
 .kpi.green{--ac:#22c55e}.kpi.red{--ac:#ef4444}.kpi.amber{--ac:#f59e0b}.kpi.blue{--ac:#3b82f6}.kpi.purple{--ac:#8b5cf6}.kpi.teal{--ac:#14b8a6}.kpi.gold{--ac:#f59e0b}.kpi.rose{--ac:#f43f5e}
 .kpi .lbl{font-size:10px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
@@ -35,12 +138,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .kpi .sub{font-size:10px;color:#94a3b8;margin-top:3px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px}
-.card{background:#fff;border-radius:10px;padding:16px 18px;border:1px solid #e5e7eb;margin-bottom:14px}
+.card{background:var(--surface);border-radius:var(--radius-md);padding:16px 18px;border:1px solid var(--border);margin-bottom:14px}
 .card:last-child{margin-bottom:0}
-.card h3{font-size:11px;font-weight:700;color:#64748b;margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em}
+.card h3{font-size:11px;font-weight:700;color:var(--muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em}
 .ch180{position:relative;height:180px}.ch200{position:relative;height:200px}.ch240{position:relative;height:240px}.ch280{position:relative;height:280px}.ch320{position:relative;height:320px}
 table{width:100%;border-collapse:collapse;font-size:12px}
-table th{text-align:left;padding:8px 10px;background:#f8fafc;font-weight:700;font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid #e5e7eb;white-space:nowrap}
+table th{text-align:left;padding:8px 10px;background:#f8fafc;font-weight:700;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid #e5e7eb;white-space:nowrap}
 table td{padding:8px 10px;border-bottom:1px solid #f1f5f9;color:#374151}
 table tr:hover td{background:#fafafa}
 table tr:last-child td{border-bottom:none}
@@ -50,7 +153,7 @@ table tr:last-child td{border-bottom:none}
 .panel{display:none}.panel.active{display:block}
 .info{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:9px 13px;font-size:11px;color:#1e40af;margin-bottom:12px}
 .warn{background:#fefce8;border:1px solid #fde68a;border-radius:8px;padding:9px 13px;font-size:11px;color:#854d0e;margin-bottom:12px}
-.upload-zone{background:#fff;border:2px dashed #cbd5e1;border-radius:12px;padding:48px 24px;text-align:center;color:#94a3b8;cursor:pointer;transition:all .2s}
+.upload-zone{background:var(--surface);border:2px dashed #cbd5e1;border-radius:12px;padding:48px 24px;text-align:center;color:#94a3b8;cursor:pointer;transition:border-color .2s ease,color .2s ease,transform .2s ease}
 .upload-zone:hover{border-color:#3b82f6;color:#3b82f6;background:#f8faff}
 .upload-zone p{font-size:15px;font-weight:600;margin:10px 0 5px;color:#334155}
 /* AOD Card */
@@ -65,32 +168,29 @@ table tr:last-child td{border-bottom:none}
 .aod-stat .sl{font-size:9px;opacity:.55;margin-top:2px}
 /* Toggle */
 .toggle-row{display:flex;gap:6px;margin-bottom:12px;align-items:center;flex-wrap:wrap}
-.tog-btn{padding:5px 13px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;cursor:pointer;font-size:11px;font-weight:500;color:#64748b}
+.tog-btn{padding:5px 13px;border-radius:6px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:11px;font-weight:500;color:var(--muted)}
 .tog-btn.active{background:#0f172a;color:#fff;border-color:#0f172a}
 /* SLA */
 .sla-bar{height:12px;border-radius:6px;background:#e5e7eb;overflow:hidden;margin:6px 0}
 .sla-fill{height:100%;border-radius:6px;transition:width .4s}
 input[type=file]{display:none}
-input[type=text]{padding:5px 9px;border:1px solid #e5e7eb;border-radius:6px;font-size:11px;width:180px}
-select{padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:11px;background:#fff;cursor:pointer}
+input[type=text]{padding:5px 9px;border:1px solid var(--border);border-radius:6px;font-size:11px;width:180px}
+select{padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;background:var(--surface);cursor:pointer}
 @media(max-width:768px){.grid2,.grid3{grid-template-columns:1fr}}
 
+.tabs{
+  backdrop-filter:blur(10px);
+}
 
-/* ─── PREMIUM TAB HOVER ───────────────────── */
 .tab{
-  transition:
-    transform .18s ease,
-    color .18s ease,
-    background .18s ease;
-  border-radius:8px 8px 0 0;
+  display:flex;
+  align-items:center;
+  gap:6px;
 }
 
-.tab:hover{
-  transform:translateY(-3px) scale(1.03);
-  background:rgba(59,130,246,.06);
-}
 
-/* ─── DRAMATIC AOD REVEAL ─────────────────── */
+
+
 @keyframes dramaticReveal{
   0%{
     opacity:0;
@@ -175,7 +275,7 @@ table tbody tr{
 }
 
 .tab{
-  transition:all .2s ease;
+  transition:border-color .2s ease,color .2s ease,transform .2s ease ease;
 }
 
 .tab:hover{
@@ -206,6 +306,278 @@ canvas{
   animation:fadeUp .6s ease both;
 }
 
+
+
+/* ─── PREMIUM ICON GLOW SYSTEM ───────────────── */
+.card h3{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  transition:transform .25s ease,color .25s ease,text-shadow .25s ease;
+}
+
+.card:hover h3{
+  transform:translateX(2px);
+}
+
+#panel-efficiency .card h3:hover{
+  text-shadow:0 0 10px rgba(245,158,11,.35);
+}
+
+#panel-aibot .card h3:hover{
+  text-shadow:0 0 10px rgba(139,92,246,.35);
+}
+
+#panel-hourly .card h3:hover{
+  text-shadow:0 0 10px rgba(59,130,246,.35);
+}
+
+#panel-sla .card h3:hover{
+  text-shadow:0 0 10px rgba(34,197,94,.35);
+}
+
+#panel-repeat .card h3:hover{
+  text-shadow:0 0 10px rgba(239,68,68,.35);
+}
+
+
+
+
+
+
+
+/* ─── CONSOLIDATED MOTION + COMPONENT SYSTEM ───────────────── */
+
+.tab{
+  padding:12px 15px;
+  cursor:pointer;
+  font-size:12px;
+  font-weight:500;
+  color:var(--muted);
+  border-bottom:3px solid transparent;
+  margin-bottom:-2px;
+  white-space:nowrap;
+  border-radius:var(--radius-md) 10px 0 0;
+
+  transition:
+    transform var(--fast),
+    color var(--fast),
+    background var(--fast),
+    box-shadow var(--normal);
+}
+
+.tab:hover{
+  color:#0f172a;
+  transform:translateY(-3px) scale(1.03);
+  background:rgba(59,130,246,.08);
+  box-shadow:0 8px 18px rgba(59,130,246,.15);
+}
+
+.tab.active{
+  color:#0f172a;
+  border-bottom-color:var(--blue);
+  font-weight:700;
+}
+
+.card{
+  background:var(--surface);
+  border-radius:var(--radius-md);
+  padding:16px 18px;
+  border:1px solid var(--border);
+  margin-bottom:14px;
+
+  transition:
+    transform var(--normal),
+    box-shadow var(--normal),
+    border-color var(--normal);
+
+  animation:fadeUp .45s ease both;
+}
+
+.card:hover{
+  transform:translateY(-3px);
+  box-shadow:var(--shadow-hover);
+}
+
+.kpi{
+  animation:fadeUp .45s ease both;
+
+  transition:
+    transform var(--fast),
+    box-shadow var(--fast);
+}
+
+.kpi:hover{
+  transform:translateY(-3px);
+  box-shadow:var(--shadow-soft);
+}
+
+.card h3{
+  display:flex;
+  align-items:center;
+  gap:8px;
+
+  transition:
+    transform var(--fast),
+    letter-spacing var(--fast),
+    text-shadow var(--normal);
+}
+
+.card:hover h3{
+  transform:translateX(4px);
+  letter-spacing:.04em;
+}
+
+#panel-efficiency .card:hover{
+ border-color:var(--amber);
+ box-shadow:0 0 18px rgba(245,158,11,.18);
+}
+
+#panel-aibot .card:hover{
+ border-color:var(--purple);
+ box-shadow:0 0 18px rgba(139,92,246,.18);
+}
+
+#panel-hourly .card:hover{
+ border-color:var(--blue);
+ box-shadow:0 0 18px rgba(59,130,246,.18);
+}
+
+#panel-sla .card:hover{
+ border-color:var(--green);
+ box-shadow:0 0 18px rgba(34,197,94,.18);
+}
+
+#panel-repeat .card:hover{
+ border-color:var(--red);
+ box-shadow:0 0 18px rgba(239,68,68,.18);
+}
+
+
+/* ===== HOUSE OF PETROLHEADS CELESTIAL FOOTER ===== */
+.celestial-footer{
+  text-align:center;
+  margin-top:28px;
+  padding:18px 0 8px;
+  font-size:12px;
+  color:#94a3b8;
+  letter-spacing:.04em;
+}
+
+.celestial-footer .mars{
+  color:#f59e0b;
+  font-weight:700;
+}
+
+.celestial-footer .celestial{
+  font-weight:900;
+  background:linear-gradient(90deg,#f59e0b,#fb923c,#f97316,#facc15,#f59e0b);
+  background-size:300% auto;
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  animation:orangeFlow 4s linear infinite;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+}
+
+.celestial-line{
+  width:140px;
+  height:2px;
+  margin:0 auto 10px;
+  background:linear-gradient(90deg,transparent,#f59e0b,transparent);
+  animation:pulseLine 2s ease-in-out infinite;
+}
+
+@keyframes orangeFlow{
+  0%{background-position:0% center}
+  100%{background-position:300% center}
+}
+
+@keyframes pulseLine{
+  0%,100%{opacity:.4;transform:scaleX(.8)}
+  50%{opacity:1;transform:scaleX(1.1)}
+}
+
+
+
+
+
+/* ─── DAMENSCH LETTER LOADER V2 ───────────────── */
+#damensch-loader{
+  opacity:0;
+  pointer-events:none;
+  position:fixed;
+  inset:0;
+  background:radial-gradient(circle at center,#0f172a 0%,#020617 100%);
+  z-index:999999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+}
+
+.loader-core{
+  text-align:center;
+}
+
+.loader-brand{
+  position:relative;
+  font-size:92px;
+  font-weight:900;
+  letter-spacing:.16em;
+  color:rgba(255,255,255,.12);
+  text-transform:uppercase;
+  overflow:hidden;
+}
+
+.loader-brand::after{
+  content:attr(data-text);
+  position:absolute;
+  inset:0;
+  width:0%;
+  overflow:hidden;
+  color:#f59e0b;
+  white-space:nowrap;
+  text-shadow:
+    0 0 12px rgba(245,158,11,.45),
+    0 0 24px rgba(245,158,11,.25);
+  transition:width .45s ease;
+}
+
+.loader-percent{
+  margin-top:18px;
+  font-size:16px;
+  font-weight:700;
+  color:#94a3b8;
+  letter-spacing:.18em;
+}
+
+.loader-sub{
+  margin-top:10px;
+  font-size:10px;
+  color:#475569;
+  letter-spacing:.35em;
+}
+
+.loader-scan{
+  position:absolute;
+  inset:0;
+  background:linear-gradient(
+    90deg,
+    transparent,
+    rgba(255,255,255,.06),
+    transparent
+  );
+  animation:loaderScan 2.2s linear infinite;
+}
+
+@keyframes loaderScan{
+  from{transform:translateX(-100%)}
+  to{transform:translateX(100%)}
+}
+to{transform:rotate(360deg)}
+}
+
 </style>
 </head>
 <body>
@@ -231,18 +603,18 @@ canvas{
 </div>
 
 <div class="tabs">
-  <div class="tab active" onclick="showTab('summary',this)">Summary</div>
-  <div class="tab" onclick="showTab('resolution',this)">Resolution</div>
-  <div class="tab" onclick="showTab('agents',this)">Agents</div>
+  <div class="tab active" onclick="showTab('summary',this)">📊 Summary</div>
+  <div class="tab" onclick="showTab('resolution',this)">⚡ Resolution</div>
+  <div class="tab" onclick="showTab('agents',this)">👥 Agents</div>
   <div class="tab" onclick="showTab('efficiency',this)">&#127942; Efficiency</div>
-  <div class="tab" onclick="showTab('sla',this)">SLA</div>
-  <div class="tab" onclick="showTab('hourly',this)">Hourly Load</div>
-  <div class="tab" onclick="showTab('fcr',this)">FCR</div>
-  <div class="tab" onclick="showTab('repeat',this)">Repeat %</div>
+  <div class="tab" onclick="showTab('sla',this)">⏱️ SLA</div>
+  <div class="tab" onclick="showTab('hourly',this)">📈 Hourly Load</div>
+  <div class="tab" onclick="showTab('fcr',this)">🎯 FCR</div>
+  <div class="tab" onclick="showTab('repeat',this)">🔁 Repeat %</div>
   <div class="tab" onclick="showTab('aibot',this)">🤖 AI BOT</div>
-  <div class="tab" onclick="showTab('orders',this)">Orders</div>
-  <div class="tab" onclick="showTab('transfers',this)">Transfers</div>
-  <div class="tab" onclick="showTab('csat',this)">CSAT & DSAT</div>
+  <div class="tab" onclick="showTab('orders',this)">📦 Orders</div>
+  <div class="tab" onclick="showTab('transfers',this)">🔄 Transfers</div>
+  <div class="tab" onclick="showTab('csat',this)">⭐ CSAT & DSAT</div>
   <div class="tab" onclick="showTab('roster',this)">&#128197; Roster</div>
 </div>
 
@@ -258,12 +630,12 @@ canvas{
   <div id="summary-data" style="display:none">
     <div class="kpi-row" id="kpi-summary"></div>
     <div class="grid2">
-      <div class="card"><h3>Resolution time distribution</h3><div class="ch200"><canvas id="c-dist"></canvas></div></div>
-      <div class="card"><h3>Chats by status</h3><div class="ch200"><canvas id="c-status"></canvas></div></div>
+      <div class="card"><h3>📊 Resolution time distribution</h3><div class="ch200"><canvas id="c-dist"></canvas></div></div>
+      <div class="card"><h3>📈 Chats by status</h3><div class="ch200"><canvas id="c-status"></canvas></div></div>
     </div>
     <div class="grid2">
-      <div class="card"><h3>Chats per agent</h3><div class="ch200"><canvas id="c-agent-vol"></canvas></div></div>
-      <div class="card"><h3>Hourly volume</h3><div class="ch200"><canvas id="c-hourly-mini"></canvas></div></div>
+      <div class="card"><h3>👥 Chats per agent</h3><div class="ch200"><canvas id="c-agent-vol"></canvas></div></div>
+      <div class="card"><h3>⚡ Hourly volume</h3><div class="ch200"><canvas id="c-hourly-mini"></canvas></div></div>
     </div>
   </div>
 
@@ -275,7 +647,7 @@ canvas{
 <div class="card" id="weekly-ops-card" style="display:none">
   <h3>📈 Weekly operations overview</h3>
 
-  <table>
+  <table class="table-standard">
     <thead>
       <tr>
         <th>Day</th>
@@ -293,34 +665,20 @@ canvas{
 <div class="card" id="weekly-disp-break-card" style="display:none">
   <h3>📋 Weekly disposition breakdown</h3>
 
-  <div style="overflow-x:auto">
-    <table id="weekly-disp-matrix">
+  <div class="toggle-row" style="margin-top:-4px;margin-bottom:10px">
+    <button class="tog-btn active">Weekly</button>
+    <button class="tog-btn">Daily</button>
+    <span class="text-xs text-muted">Top 20 dispositions only</span>
+  </div>
+
+  <div class="table-wrap">
+    <table class="table-standard" id="weekly-disp-matrix">
       <thead id="weekly-disp-head"></thead>
       <tbody id="weekly-disp-body"></tbody>
     </table>
   </div>
 </div>
-<!-- WEEKLY DISPOSITION TABLE -->
 
-  <div class="card" id="weekly-disp-card" style="display:none">
-    <h3>📋 Weekly top 10 dispositions</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Disposition</th>
-          <th>Total</th>
-          <th>% of Week</th>
-          <th>Bot Handled</th>
-          <th>Agent Handled</th>
-          <th>Avg Res (min)</th>
-          <th>CSAT</th>
-          <th>DSAT</th>
-        </tr>
-      </thead>
-      <tbody id="weekly-disp-tbody"></tbody>
-    </table>
-  </div>
 </div>
 
 <!-- RESOLUTION -->
@@ -335,24 +693,24 @@ canvas{
 <!-- AGENTS -->
 <div id="panel-agents" class="panel">
   <div class="card">
-    <h3>Agent performance</h3>
-    <table><thead><tr><th>Agent</th><th>Type</th><th>Chats</th><th>Completed</th><th>Avg Res</th><th>Median</th><th>75th</th><th>90th</th><th>1st Resp</th><th>Active</th></tr></thead>
+    <h3>🏆 Agent performance</h3>
+    <table class="table-standard"><thead><tr><th>Agent</th><th>Chats</th><th>Completed</th><th>Avg Res</th><th>Median</th><th>75th</th><th>90th</th><th>1st Resp</th><th>Active</th></tr></thead>
     <tbody id="agent-tbody"></tbody></table>
   </div>
-  <div class="card" style="margin-top:14px">
-    <h3>Disposition analysis</h3>
+  <div class="card" class="mt-14">
+    <h3>📋 Disposition analysis</h3>
     <div id="disp-note" class="warn">Disposition data comes from Tickets All file. Upload it to see this section.</div>
     <div id="disp-content" style="display:none">
-      <div class="grid2" style="margin-top:0">
+      <div class="grid2" class="mt-0">
         <div>
-          <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:8px">Top dispositions by volume</div>
-          <table><thead><tr><th>Disposition</th><th>Chats</th><th>Avg Res</th><th>Median</th><th>% Total</th></tr></thead><tbody id="disp-tbody"></tbody></table>
+          <div class="uppercase-label">Top dispositions by volume</div>
+          <table class="table-standard"><thead><tr><th>Disposition</th><th>Chats</th><th>Avg Res</th><th>Median</th><th>% Total</th></tr></thead><tbody id="disp-tbody"></tbody></table>
         </div>
         <div><div class="ch240"><canvas id="c-disp-rt"></canvas></div></div>
       </div>
-      <div style="margin-top:14px">
-        <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:8px">Top disposition per agent</div>
-        <table><thead><tr><th>Agent</th><th>Top Disposition</th><th>#</th><th>2nd Disposition</th><th>#</th><th>Avg Res</th></tr></thead><tbody id="agent-disp-tbody"></tbody></table>
+      <div class="mt-14">
+        <div class="uppercase-label">Top disposition per agent</div>
+        <table class="table-standard"><thead><tr><th>Agent</th><th>Top Disposition</th><th>#</th><th>2nd Disposition</th><th>#</th><th>Avg Res</th></tr></thead><tbody id="agent-disp-tbody"></tbody></table>
       </div>
     </div>
   </div>
@@ -364,11 +722,11 @@ canvas{
   <div class="info">Score = CSAT 35% + Chats 25% + Resolution 20% + Completion 15% + First Response 10%. Auto-adjusts if no CSAT.</div>
   <div class="kpi-row" id="kpi-efficiency"></div>
   <div class="grid2">
-    <div class="card"><h3>Efficiency score by agent</h3><div class="ch240"><canvas id="c-efficiency"></canvas></div></div>
+    <div class="card"><h3>🏆 Efficiency score by agent</h3><div class="ch240"><canvas id="c-efficiency"></canvas></div></div>
     <div class="card"><h3>Active time vs resolution time</h3><div class="ch240"><canvas id="c-active-vs-res"></canvas></div></div>
   </div>
   <div class="card"><h3>Full efficiency breakdown</h3>
-    <table><thead><tr><th>Rank</th><th>Agent</th><th>Score</th><th>Chats</th><th>Median Res</th><th>1st Resp</th><th>Completion</th><th>CSAT</th><th>Rating</th></tr></thead>
+    <table class="table-standard"><thead><tr><th>Rank</th><th>Agent</th><th>Score</th><th>Chats</th><th>Median Res</th><th>1st Resp</th><th>Completion</th><th>CSAT</th><th>Rating</th></tr></thead>
     <tbody id="eff-tbody"></tbody></table>
   </div>
 </div>
@@ -378,8 +736,8 @@ canvas{
   <div class="info">SLA threshold: 12 minutes. Any chat resolved in more than 12 min = SLA breach.</div>
   <div class="kpi-row" id="kpi-sla" style="grid-template-columns:repeat(5,1fr)"></div>
   <div class="grid2">
-    <div class="card"><h3>SLA compliance by agent</h3>
-      <table><thead><tr><th>Agent</th><th>Chats</th><th>Within SLA</th><th>SLA %</th><th>Breached</th><th>Breach %</th><th>Status</th></tr></thead>
+    <div class="card"><h3>⏱ SLA compliance by agent</h3>
+      <table class="table-standard"><thead><tr><th>Agent</th><th>Chats</th><th>Within SLA</th><th>SLA %</th><th>Breached</th><th>Breach %</th><th>Status</th></tr></thead>
       <tbody id="sla-tbody"></tbody></table>
     </div>
     <div class="card"><h3>SLA breach by hour</h3><div class="ch240"><canvas id="c-sla-hour"></canvas></div></div>
@@ -390,21 +748,12 @@ canvas{
 <!-- HOURLY LOAD -->
 <div id="panel-hourly" class="panel">
   <div class="toggle-row">
-    <span style="font-size:11px;color:#64748b;font-weight:500">View:</span>
+    <span class="text-sm text-muted">View:</span>
     <button class="tog-btn active" onclick="setHourlyView('total',this)">Total Volume</button>
     <button class="tog-btn" onclick="setHourlyView('avg',this)">Daily Average</button>
-    <span id="days-lbl" style="font-size:10px;color:#94a3b8"></span>
+    <span id="days-lbl" class="text-xs text-muted"></span>
   </div>
-  <div class="card"><h3>Hourly volume vs capacity</h3><div class="ch280"><canvas id="c-hourly-full"></canvas></div></div>
-  <div class="card"><h3>Hourly incoming vs wait time overlay</h3>
-    <div id="wt-overlay-note" class="warn" style="display:none">Add Wait Time column to Agent Activity to see wait time overlay.</div>
-    <div class="ch280"><canvas id="c-wt-overlay"></canvas></div>
-  </div>
-  <div class="card"><h3>Day-wise volume pattern</h3><div class="ch200"><canvas id="c-daily-pattern"></canvas></div></div>
-  <div class="card">
-    <h3>Hour-by-hour staffing</h3>
-    <div style="overflow-x:auto"><table><thead><tr id="hourly-thead"></tr></thead><tbody id="hourly-tbody"></tbody></table></div>
-  </div>
+  
   <!-- WAIT TIME DETAIL -->
   <div class="card">
     <h3>Wait time detail — add <strong>Wait Time</strong> column to Agent Activity (VLOOKUP from SLA sheet)</h3>
@@ -412,18 +761,53 @@ canvas{
     <div id="wt-content" style="display:none">
       <div class="kpi-row" id="kpi-wt" style="grid-template-columns:repeat(5,1fr);margin-bottom:14px"></div>
       <div class="grid2">
-        <div class="card" style="border:1px solid #e5e7eb">
+        <div class="card" style="border:1px solid var(--border)">
           <h3>Chats that had wait time &gt; 0</h3>
           <div class="ch240"><canvas id="c-wt-dist"></canvas></div>
         </div>
-        <div class="card" style="border:1px solid #e5e7eb">
+        <div class="card" style="border:1px solid var(--border)">
           <h3>Wait time by agent</h3>
-          <table><thead><tr><th>Agent</th><th>All Chats</th><th>Had Wait</th><th>Avg Wait (all)</th><th>Avg Wait (waiting only)</th><th>Max</th><th>Status</th></tr></thead>
+          <table class="table-standard"><thead><tr><th>Agent</th><th>All Chats</th><th>Had Wait</th><th>Avg Wait (all)</th><th>Avg Wait (waiting only)</th><th>Max</th><th>Status</th></tr></thead>
           <tbody id="wt-agent-tbody"></tbody></table>
         </div>
       </div>
     </div>
   </div>
+
+  <!-- HOURLY VOLUME VS CAPACITY -->
+  <div class="card">
+    <h3>Hourly volume vs capacity</h3>
+    <div class="ch280"><canvas id="c-hourly-full"></canvas></div>
+  </div>
+
+  <!-- WAIT TIME OVERLAY -->
+  <div class="card">
+    <h3>Hourly incoming vs wait time overlay</h3>
+    <div id="wt-overlay-note" class="warn" style="display:none">
+      Add Wait Time column to Agent Activity to see wait time overlay.
+    </div>
+    <div class="ch280"><canvas id="c-wt-overlay"></canvas></div>
+  </div>
+
+  <!-- DAY PATTERN -->
+  <div class="card">
+    <h3>Day-wise volume pattern</h3>
+    <div class="ch200"><canvas id="c-daily-pattern"></canvas></div>
+  </div>
+
+  <!-- STAFFING TABLE LAST -->
+  <div class="card">
+    <h3>Hour-by-hour staffing</h3>
+    <div class="table-wrap">
+      <table class="table-standard">
+        <thead>
+          <tr id="hourly-thead"></tr>
+        </thead>
+        <tbody id="hourly-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
 </div>
 
 <!-- FCR -->
@@ -432,7 +816,7 @@ canvas{
   <div class="kpi-row" id="kpi-fcr" style="grid-template-columns:repeat(4,1fr)"></div>
   <div class="grid2">
     <div class="card"><h3>FCR % by agent</h3>
-      <table><thead><tr><th>Agent</th><th>Unique Customers</th><th>Resolved (1 contact)</th><th>FCR %</th><th>Bounced Back</th><th>Flag</th></tr></thead>
+      <table class="table-standard"><thead><tr><th>Agent</th><th>Unique Customers</th><th>Resolved (1 contact)</th><th>FCR %</th><th>Bounced Back</th><th>Flag</th></tr></thead>
       <tbody id="fcr-agent-tbody"></tbody></table>
     </div>
     <div class="card"><h3>FCR rate by agent</h3><div class="ch240"><canvas id="c-fcr-agent"></canvas></div></div>
@@ -441,7 +825,7 @@ canvas{
     <h3>FCR by disposition — which issues get resolved first time vs come back?</h3>
     <div id="fcr-disp-note" class="warn">Upload Tickets All file to see FCR by disposition.</div>
     <div id="fcr-disp-content" style="display:none">
-      <table><thead><tr><th>Disposition</th><th>Total Contacts</th><th>FCR</th><th>FCR %</th><th>Bounced</th><th>Bounce %</th><th>Avg Res</th><th>Status</th></tr></thead>
+      <table class="table-standard"><thead><tr><th>Disposition</th><th>Total Contacts</th><th>FCR</th><th>FCR %</th><th>Bounced</th><th>Bounce %</th><th>Avg Res</th><th>Status</th></tr></thead>
       <tbody id="fcr-disp-tbody"></tbody></table>
     </div>
   </div>
@@ -455,8 +839,8 @@ canvas{
     <div class="card">
       <h3>Daily incoming vs repeat</h3>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-        <span style="font-size:11px;color:#64748b;font-weight:500">Filter by disposition:</span>
-        <select id="repeat-disp-filter" onchange="filterRepeatChart()" style="font-size:11px;padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;max-width:220px">
+        <span class="text-sm text-muted">Filter by disposition:</span>
+        <select id="repeat-disp-filter" onchange="filterRepeatChart()" style="font-size:11px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);cursor:pointer;max-width:220px">
           <option value="all">All Dispositions</option>
         </select>
       </div>
@@ -464,8 +848,8 @@ canvas{
     </div>
 
     <div class="card">
-      <h3>Repeat by disposition</h3>
-      <table>
+      <h3>🔁 Repeat by disposition</h3>
+      <table class="table-standard">
         <thead>
           <tr>
             <th>Disposition</th>
@@ -481,7 +865,7 @@ canvas{
 
   <div class="grid2">
     <div class="card"><h3>Repeat % by agent</h3>
-      <table>
+      <table class="table-standard">
         <thead>
           <tr>
             <th>Agent</th>
@@ -497,7 +881,7 @@ canvas{
 
     <div class="card">
       <h3>Day wise repeat breakdown</h3>
-      <table>
+      <table class="table-standard">
         <thead>
           <tr>
             <th>Day</th>
@@ -523,7 +907,7 @@ canvas{
   <div class="grid2">
     <div class="card">
       <h3>📊 Ticket Status Breakup</h3>
-      <table>
+      <table class="table-standard">
         <thead>
           <tr>
             <th>Status</th>
@@ -537,7 +921,7 @@ canvas{
 
     <div class="card">
       <h3>😊 Survey Intelligence</h3>
-      <table>
+      <table class="table-standard">
         <tbody id="ai-survey-body"></tbody>
       </table>
     </div>
@@ -546,7 +930,7 @@ canvas{
   <div class="grid2">
     <div class="card">
       <h3>🤖 Bot Efficiency — Daily</h3>
-      <table>
+      <table class="table-standard">
         <thead>
           <tr>
             <th>Day</th>
@@ -561,7 +945,7 @@ canvas{
 
     <div class="card">
       <h3>📦 Operational Relief — Daily</h3>
-      <table>
+      <table class="table-standard">
         <thead>
           <tr>
             <th>Day</th>
@@ -579,7 +963,7 @@ canvas{
   <div class="card">
     <h3>📈 Top 10 Task Intelligence</h3>
 
-    <table>
+    <table class="table-standard">
       <thead>
         <tr>
           <th>Task</th>
@@ -604,11 +988,11 @@ canvas{
   <div class="kpi-row" id="kpi-orders" style="grid-template-columns:repeat(4,1fr)"></div>
   <div class="grid2">
     <div class="card"><h3>Top orders by contacts</h3>
-      <table><thead><tr><th>Order</th><th>Contacts</th><th>Agents</th><th>Avg Res</th><th>Status</th></tr></thead>
+      <table class="table-standard"><thead><tr><th>Order</th><th>Contacts</th><th>Agents</th><th>Avg Res</th><th>Status</th></tr></thead>
       <tbody id="order-tbody"></tbody></table>
     </div>
     <div class="card"><h3>Orders with 4+ contacts</h3>
-      <table><thead><tr><th>Order</th><th>Contacts</th><th>Last Agent</th><th>Note</th></tr></thead>
+      <table class="table-standard"><thead><tr><th>Order</th><th>Contacts</th><th>Last Agent</th><th>Note</th></tr></thead>
       <tbody id="order-hot-tbody"></tbody></table>
     </div>
   </div>
@@ -619,11 +1003,11 @@ canvas{
   <div class="kpi-row" id="kpi-transfers" style="grid-template-columns:repeat(4,1fr)"></div>
   <div class="grid2">
     <div class="card"><h3>Transfer rate by agent</h3>
-      <table><thead><tr><th>Agent</th><th>Chats</th><th>Transferred</th><th>Rate %</th><th>Flag</th></tr></thead>
+      <table class="table-standard"><thead><tr><th>Agent</th><th>Chats</th><th>Transferred</th><th>Rate %</th><th>Flag</th></tr></thead>
       <tbody id="transfer-tbody"></tbody></table>
     </div>
     <div class="card"><h3>Transfer details</h3>
-      <table><thead><tr><th>Ticket</th><th>Agent</th><th>Reason</th></tr></thead>
+      <table class="table-standard"><thead><tr><th>Ticket</th><th>Agent</th><th>Reason</th></tr></thead>
       <tbody id="transfer-detail-tbody"></tbody></table>
     </div>
   </div>
@@ -639,7 +1023,7 @@ canvas{
   </div>
   <div class="card">
     <h3>CSAT & DSAT by agent — detailed</h3>
-    <table><thead><tr><th>Agent</th><th>Rated</th><th>CSAT (4-5)</th><th>CSAT %</th><th>DSAT (1-3)</th><th>DSAT %</th><th>Avg Score</th><th>5 Star</th><th>Rating</th></tr></thead>
+    <table class="table-standard"><thead><tr><th>Agent</th><th>Rated</th><th>CSAT (4-5)</th><th>CSAT %</th><th>DSAT (1-3)</th><th>DSAT %</th><th>Avg Score</th><th>5 Star</th><th>Rating</th></tr></thead>
     <tbody id="csat-agent-tbody"></tbody></table>
   </div>
   <div class="card">
@@ -656,8 +1040,8 @@ canvas{
       <div style="position:relative;height:260px"><canvas id="c-agent-7day"></canvas></div>
     </div>
   </div>
-  <div class="card" style="margin-top:0"><h3>DSAT follow-up list (ratings 1-3)</h3>
-    <table><thead><tr><th>Ticket</th><th>Agent</th><th>Customer</th><th>Rating</th><th>Comment</th><th>Disposition</th><th>Product</th></tr></thead>
+  <div class="card" class="mt-0"><h3>DSAT follow-up list (ratings 1-3)</h3>
+    <table class="table-standard"><thead><tr><th>Ticket</th><th>Agent</th><th>Customer</th><th>Rating</th><th>Comment</th><th>Disposition</th><th>Product</th></tr></thead>
     <tbody id="dsat-tbody"></tbody></table>
   </div>
 </div>
@@ -667,7 +1051,7 @@ canvas{
   <div class="info">Upload a full week of Agent Activity for best roster recommendations based on your actual volume patterns.</div>
   <div class="kpi-row" id="kpi-roster" style="grid-template-columns:repeat(4,1fr)"></div>
   <div class="card"><h3>&#127774; Week off recommendations</h3><div id="weekoff-section"></div></div>
-  <div class="card"><h3>&#128197; Recommended weekly roster</h3><div style="overflow-x:auto" id="roster-grid-wrap"></div>
+  <div class="card"><h3>&#128197; Recommended weekly roster</h3><div class="table-wrap" id="roster-grid-wrap"></div>
     <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;font-size:10px">
       <span style="background:#dbeafe;color:#1e40af;padding:2px 7px;border-radius:4px;font-weight:700">08:00</span> 08:00-17:00
       <span style="background:#ede9fe;color:#6d28d9;padding:2px 7px;border-radius:4px;font-weight:700">10:00</span> 10:00-19:00
@@ -677,7 +1061,7 @@ canvas{
     </div>
   </div>
   <div class="grid2">
-    <div class="card"><h3>Daily coverage</h3><table><thead><tr id="cov-thead"></tr></thead><tbody id="cov-tbody"></tbody></table></div>
+    <div class="card"><h3>Daily coverage</h3><table class="table-standard"><thead><tr id="cov-thead"></tr></thead><tbody id="cov-tbody"></tbody></table></div>
     <div class="card"><h3>Peak hour staffing check</h3><div id="peak-check"></div></div>
   </div>
   <div class="card"><h3>Agent coverage heatmap</h3><div class="ch320"><canvas id="c-heatmap"></canvas></div></div>
@@ -693,7 +1077,22 @@ const SLA_THRESHOLD=12;
 const NEW_KEYWORDS=['vamshi','sangna','chandan kumar','chandan b'];
 const SHIFT_TIMES=[{label:'08:00',start:8,end:17,cls:'background:#dbeafe;color:#1e40af'},{label:'10:00',start:10,end:19,cls:'background:#ede9fe;color:#6d28d9'},{label:'12:00',start:12,end:21,cls:'background:#fef3c7;color:#b45309'},{label:'15:00',start:15,end:24,cls:'background:#dcfce7;color:#15803d'}];
 
-let CH={}, G=null, hourlyView='total';
+const AppState={
+  rawData:{aaRows:null,tktRows:null},
+  processed:{dashboard:null},
+  charts:{},
+  ui:{
+    hourlyView:'total',
+    activeTab:'summary',
+    loading:false,
+    loadingProgress:0
+  },
+  filters:{}
+};
+
+let CH=AppState.charts;
+let G=null;
+let hourlyView='total';
 let aaRows=null, tktRows=null;
 const agCC={};
 function agC(n){if(!agCC[n]){const i=Object.keys(agCC).length%PALETTE.length;agCC[n]=PALETTE[i];}return agCC[n];}
@@ -701,6 +1100,7 @@ function isNew(n){const k=n.toLowerCase();return NEW_KEYWORDS.some(x=>k.includes
 
 // ─── TAB / SOURCE / TOGGLE ────────────────────────────────────────────────────
 function showTab(n,el){
+  AppState.ui.activeTab=n;
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
 
@@ -955,49 +1355,7 @@ function renderTab(name){
   const hasCsat=wa.some(r=>r.csat!==null);
 
   if(name==='summary'){
-    // Weekly disposition table — uses tktRows for accurate disposition data
-    const wdCard=document.getElementById('weekly-disp-card');
-    if(tktRows&&tktRows.length){
-      wdCard.style.display='block';
-      function cleanPh2(v){if(!v)return'';let s=String(v).replace(/[^0-9]/g,'');if(s.length>10)s=s.slice(-10);return s;}
-      const aaTids=new Set(aaRows?aaRows.map(r=>String(r['Ticket ID']||'').replace('#','').trim()):[]);
-      const dispMap={};
-      tktRows.forEach(r=>{
-        const disp=String(r['Task Names']||r['Disposition: L2 Disposition']||r['Task Name']||'').trim();
-        if(!disp||disp==='undefined')return;
-        const tid=String(r['Ticket Number']||'').trim();
-        const isBot=String(r['Status']||'').toLowerCase().includes('resolved by ai');
-        const isAgent=aaTids.has(tid);
-        const rating=parseFloat(r['CSAT Rating']||r['CSAT']||'');
-        const resMin=null; // resolution time not in tkt
-        if(!dispMap[disp])dispMap[disp]={total:0,bot:0,agent:0,csat:0,dsat:0,res:[]};
-        dispMap[disp].total++;
-        if(isBot)dispMap[disp].bot++;
-        if(isAgent)dispMap[disp].agent++;
-        if(!isNaN(rating)&&rating>=4)dispMap[disp].csat++;
-        if(!isNaN(rating)&&rating>=1&&rating<=3)dispMap[disp].dsat++;
-      });
-      const totalAll=tktRows.length;
-      const sorted=Object.entries(dispMap).sort((a,b)=>b[1].total-a[1].total).slice(0,10);
-      document.getElementById('weekly-disp-tbody').innerHTML=sorted.map(([d,v],i)=>{
-        const pct=totalAll?(v.total/totalAll*100).toFixed(1):0;
-        const botPct=v.total?(v.bot/v.total*100).toFixed(0):0;
-        const agPct=v.total?(v.agent/v.total*100).toFixed(0):0;
-        return`<tr>
-          <td style="color:#94a3b8;font-size:11px">${i+1}</td>
-          <td><strong>${d}</strong></td>
-          <td><span class="badge bb">${v.total}</span></td>
-          <td>${pct}%</td>
-          <td style="color:#7c3aed;font-weight:600">${v.bot} <span style="font-size:10px;color:#94a3b8">(${botPct}%)</span></td>
-          <td style="color:#3b82f6;font-weight:600">${v.agent} <span style="font-size:10px;color:#94a3b8">(${agPct}%)</span></td>
-          <td>-</td>
-          <td style="color:#16a34a;font-weight:600">${v.csat}</td>
-          <td style="color:#dc2626;font-weight:600">${v.dsat}</td>
-        </tr>`;
-      }).join('');
-    } else {
-      wdCard.style.display='none';
-    }
+    
     
     // WEEKLY OPERATIONS OVERVIEW
     const dailyMap = {};
@@ -1077,10 +1435,25 @@ function renderTab(name){
     ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
     .filter(d=>daysUsed.has(d));
 
+    const dateMap = {};
+
+    wa.forEach(r=>{
+      if(!r.startDT)return;
+
+      const dName = dayNames[r.startDT.getDay()];
+      const dNum = r.startDT.getDate();
+      const month = r.startDT.toLocaleString('default',{month:'short'});
+
+      dateMap[dName] = `${dName} ${dNum} ${month}`;
+    });
+
+    const orderedDaysFormatted =
+      orderedDays.map(d=>dateMap[d] || d);
+
     document.getElementById('weekly-disp-head').innerHTML=`
     <tr>
       <th>Disposition</th>
-      ${orderedDays.map(d=>`<th>${d}</th>`).join('')}
+      ${orderedDaysFormatted.map(d=>`<th>${d}</th>`).join('')}
     </tr>
     `;
 
@@ -1095,6 +1468,7 @@ document.getElementById('weekly-disp-body').innerHTML=
       const tb=Object.values(b[1]).reduce((x,y)=>x+y,0);
       return tb-ta;
     })
+    .slice(0,20)
     .map(([disp,data])=>`
     <tr>
       <td><strong>${disp}</strong></td>
@@ -1131,23 +1505,23 @@ document.getElementById('weekly-disp-body').innerHTML=
 
   if(name==='resolution'){
     const m2=med(resTimes),p75=pct(resTimes,75),p90=pct(resTimes,90);
-    document.getElementById('rt-stats').innerHTML=[['Median',fmt(m2)],['75th',fmt(p75)],['90th',fmt(p90)],['Average',fmt(avg(resTimes))],['Min',fmt(Math.min(...resTimes))],['Max',fmt(Math.max(...resTimes))]].map(([l,v])=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13px"><span style="color:#64748b">${l}</span><strong>${v} min</strong></div>`).join('');
+    document.getElementById('rt-stats').innerHTML=[['Median',fmt(m2)],['75th',fmt(p75)],['90th',fmt(p90)],['Average',fmt(avg(resTimes))],['Min',fmt(Math.min(...resTimes))],['Max',fmt(Math.max(...resTimes))]].map(([l,v])=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13px"><span style="color:var(--muted)">${l}</span><strong>${v} min</strong></div>`).join('');
     const bE=[0,5,10,20,30,45,60,Infinity],bL=['0-5','6-10','11-20','21-30','31-45','46-60','60+'],bCols=['#16a34a','#16a34a','#ca8a04','#ca8a04','#dc2626','#dc2626','#991b1b'];
     const maxC=Math.max(...bL.map((_,i)=>resTimes.filter(v=>v>bE[i]&&v<=bE[i+1]).length));
-    document.getElementById('rt-buckets').innerHTML=bL.map((l,i)=>{const cnt=resTimes.filter(v=>v>bE[i]&&v<=bE[i+1]).length;const w=maxC?cnt/maxC*100:0;return`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5f7fa"><span style="width:60px;font-size:11px;color:#64748b">${l}</span><div style="background:#f1f5f9;border-radius:4px;height:8px;flex:1;overflow:hidden"><div style="height:100%;border-radius:4px;background:${bCols[i]};width:${w}%"></div></div><span style="font-size:11px;font-weight:700;width:26px;text-align:right">${cnt}</span><span style="font-size:10px;color:#94a3b8;width:36px;text-align:right">${total?(cnt/total*100).toFixed(1):0}%</span></div>`;}).join('');
+    document.getElementById('rt-buckets').innerHTML=bL.map((l,i)=>{const cnt=resTimes.filter(v=>v>bE[i]&&v<=bE[i+1]).length;const w=maxC?cnt/maxC*100:0;return`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5f7fa"><span style="width:60px;font-size:11px;color:var(--muted)">${l}</span><div style="background:#f1f5f9;border-radius:4px;height:8px;flex:1;overflow:hidden"><div style="height:100%;border-radius:4px;background:${bCols[i]};width:${w}%"></div></div><span style="font-size:11px;font-weight:700;width:26px;text-align:right">${cnt}</span><span style="font-size:10px;color:#94a3b8;width:36px;text-align:right">${total?(cnt/total*100).toFixed(1):0}%</span></div>`;}).join('');
     destroyC('c-agent-rt');CH['c-agent-rt']=new Chart(document.getElementById('c-agent-rt'),{type:'bar',data:{labels:AGENTS.map(a=>a.split(' ')[0]),datasets:[{data:AGENTS.map(a=>{const t=wa.filter(r=>r.agent===a).map(r=>r.resMin).filter(v=>v!==null&&v>0);return t.length?med(t):0;}),backgroundColor:AGENTS.map(a=>agC(a)),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:11}}},y:{ticks:{font:{size:11}}}}}});
   }
 
   if(name==='agents'){
     document.getElementById('agent-tbody').innerHTML=AGENTS.map(a=>{
-      const rows=wa.filter(r=>r.agent===a);if(!rows.length)return`<tr><td colspan="10" style="color:#ccc">${a}</td></tr>`;
+      const rows=wa.filter(r=>r.agent===a);if(!rows.length)return`<tr><td colspan="9" style="color:#ccc">${a}</td></tr>`;
       const t=rows.map(r=>r.resMin).filter(v=>v!==null&&v>0);
       const m2=t.length?med(t):0,p75=t.length?pct(t,75):0,p90=t.length?pct(t,90):0;
       const comp=rows.filter(r=>r.status==='completed').length;
       const frT=rows.map(r=>r.frMin).filter(v=>v!==null&&v>=0&&v<60);
       const actT=rows.map(r=>r.activeMin).filter(v=>v!==null&&v>0&&v<480);
       const vs=m2-teamMed;
-      return`<tr><td><span class="dot" style="background:${agC(a)}"></span><strong>${a}</strong></td><td><span class="badge ${isNew(a)?'ba':'bb'}">${isNew(a)?'New':'Senior'}</span></td><td><strong>${rows.length}</strong></td><td>${comp}(${rows.length?(comp/rows.length*100).toFixed(0):0}%)</td><td>${fmt(avg(t))}</td><td><strong>${fmt(m2)}</strong><span style="font-size:10px;color:${vs>3?'#dc2626':vs<-3?'#16a34a':'#94a3b8'}"> ${vs>0?'+':''}${fmt(vs)}</span></td><td>${fmt(p75)}</td><td>${fmt(p90)}</td><td>${frT.length?fmt(avg(frT)):'-'}</td><td>${actT.length?fmt(avg(actT)):'-'}</td></tr>`;
+      return`<tr><td><span class="dot" style="background:${agC(a)}"></span><strong>${a}</strong></td><td><strong>${rows.length}</strong></td><td>${comp}(${rows.length?(comp/rows.length*100).toFixed(0):0}%)</td><td>${fmt(avg(t))}</td><td><strong>${fmt(m2)}</strong><span style="font-size:10px;color:${vs>3?'#dc2626':vs<-3?'#16a34a':'#94a3b8'}"> ${vs>0?'+':''}${fmt(vs)}</span></td><td>${fmt(p75)}</td><td>${fmt(p90)}</td><td>${frT.length?fmt(avg(frT)):'-'}</td><td>${actT.length?fmt(avg(actT)):'-'}</td></tr>`;
     }).join('');
     // Disposition from Tickets All join
     const dispRows=wa.filter(r=>r.disposition&&r.disposition!=='');
@@ -1165,7 +1539,7 @@ document.getElementById('weekly-disp-body').innerHTML=
         const am={};ar.forEach(r=>{if(!am[r.disposition])am[r.disposition]={count:0,res:[]};am[r.disposition].count++;if(r.resMin)am[r.disposition].res.push(r.resMin);});
         const sorted=Object.entries(am).sort((a2,b)=>b[1].count-a2[1].count);
         const t1=sorted[0]||['-',{count:0,res:[]}],t2=sorted[1]||['-',{count:0,res:[]}];
-        return`<tr><td><span class="dot" style="background:${agC(a)}"></span><strong>${a}</strong></td><td>${t1[0]}</td><td><span class="badge bb">${t1[1].count}</span></td><td style="color:#64748b">${t2[0]}</td><td><span class="badge bgr">${t2[1].count}</span></td><td>${t1[1].res.length?fmt(avg(t1[1].res))+' min':'-'}</td></tr>`;
+        return`<tr><td><span class="dot" style="background:${agC(a)}"></span><strong>${a}</strong></td><td>${t1[0]}</td><td><span class="badge bb">${t1[1].count}</span></td><td style="color:var(--muted)">${t2[0]}</td><td><span class="badge bgr">${t2[1].count}</span></td><td>${t1[1].res.length?fmt(avg(t1[1].res))+' min':'-'}</td></tr>`;
       }).join('');
     }
   }
@@ -1933,7 +2307,7 @@ document.getElementById('ai-survey-body').innerHTML = `
           const pct=c.cohortSize?(rd.count/c.cohortSize*100).toFixed(0):0;
           const bg=pct>30?'#fee2e2':pct>15?'#fef3c7':'#dcfce7';
           const col=pct>30?'#b91c1c':pct>15?'#b45309':'#15803d';
-          return`<td style="text-align:center;background:${bg};color:${col};font-weight:700">${rd.count}<br><span style="font-size:9px">${pct}%</span><br><span style="font-size:9px;color:#64748b">B:${rd.bot} A:${rd.agent}</span></td>`;
+          return`<td style="text-align:center;background:${bg};color:${col};font-weight:700">${rd.count}<br><span style="font-size:9px">${pct}%</span><br><span style="font-size:9px;color:var(--muted)">B:${rd.bot} A:${rd.agent}</span></td>`;
         }).join('');
         return`<tr>
           <td><strong>${dayLabel}</strong></td>
@@ -1961,7 +2335,7 @@ document.getElementById('ai-survey-body').innerHTML = `
           <td style="color:#7c3aed;font-weight:700">${c.cohortSize}</td>
           <td style="color:#dc2626;font-weight:700">${returnedToday}</td>
           <td><span class="badge ${parseFloat(retPct)<10?'bg':parseFloat(retPct)<25?'ba':'br'}">${retPct}%</span></td>
-          <td style="font-size:11px;color:#64748b;max-width:120px">${c.topDisp}</td>
+          <td style="font-size:11px;color:var(--muted);max-width:120px">${c.topDisp}</td>
           <td style="color:#7c3aed">${botReClosed}</td>
           <td style="color:#3b82f6">${agentClosed2}</td>
         </tr>`;
@@ -1977,8 +2351,8 @@ document.getElementById('ai-survey-body').innerHTML = `
       {l:'4+ Contacts',v:od.filter(([,c])=>c>=4).length,c:'red'},
       {l:'Chats w/ Order',v:wa.filter(r=>r.order&&r.order!=='-'&&r.order!=='nan').length,c:'blue'},
     ].map(k=>`<div class="kpi ${k.c}"><div class="lbl">${k.l}</div><div class="val">${k.v}</div></div>`).join('');
-    document.getElementById('order-tbody').innerHTML=od.slice(0,15).map(([o,c])=>{const rows=wa.filter(r=>r.order===o);const agents=[...new Set(rows.map(r=>r.agent.split(' ')[0]))].join(', ');const t=rows.map(r=>r.resMin).filter(v=>v!==null&&v>0);const ls=rows[rows.length-1]?.status||'-';return`<tr><td><strong>${o}</strong></td><td><span class="badge ${c>=4?'br':c>=2?'ba':'bg'}">${c}</span></td><td style="font-size:10px;color:#64748b">${agents}</td><td>${t.length?fmt(avg(t)):'-'}</td><td><span class="badge ${ls==='completed'?'bg':'ba'}">${ls}</span></td></tr>`;}).join('');
-    document.getElementById('order-hot-tbody').innerHTML=od.filter(([,c])=>c>=4).slice(0,15).map(([o,c])=>{const rows=wa.filter(r=>r.order===o);return`<tr><td><strong style="color:#dc2626">${o}</strong></td><td><span class="badge br">${c}</span></td><td>${(rows[rows.length-1]?.agent||'-').split(' ')[0]}</td><td style="font-size:10px;color:#64748b">Likely unresolved</td></tr>`;}).join('');
+    document.getElementById('order-tbody').innerHTML=od.slice(0,15).map(([o,c])=>{const rows=wa.filter(r=>r.order===o);const agents=[...new Set(rows.map(r=>r.agent.split(' ')[0]))].join(', ');const t=rows.map(r=>r.resMin).filter(v=>v!==null&&v>0);const ls=rows[rows.length-1]?.status||'-';return`<tr><td><strong>${o}</strong></td><td><span class="badge ${c>=4?'br':c>=2?'ba':'bg'}">${c}</span></td><td style="font-size:10px;color:var(--muted)">${agents}</td><td>${t.length?fmt(avg(t)):'-'}</td><td><span class="badge ${ls==='completed'?'bg':'ba'}">${ls}</span></td></tr>`;}).join('');
+    document.getElementById('order-hot-tbody').innerHTML=od.filter(([,c])=>c>=4).slice(0,15).map(([o,c])=>{const rows=wa.filter(r=>r.order===o);return`<tr><td><strong style="color:#dc2626">${o}</strong></td><td><span class="badge br">${c}</span></td><td>${(rows[rows.length-1]?.agent||'-').split(' ')[0]}</td><td style="font-size:10px;color:var(--muted)">Likely unresolved</td></tr>`;}).join('');
   }
 
   if(name==='transfers'){
@@ -1990,7 +2364,7 @@ document.getElementById('ai-survey-body').innerHTML = `
       {l:'Total Chats',v:total,c:''},
     ].map(k=>`<div class="kpi ${k.c}"><div class="lbl">${k.l}</div><div class="val">${k.v}</div></div>`).join('');
     document.getElementById('transfer-tbody').innerHTML=AGENTS.map(a=>{const rows=wa.filter(r=>r.agent===a);const tr3=rows.filter(r=>r.status==='transferred').length;const p2=rows.length?tr3/rows.length*100:0;return`<tr><td><span class="dot" style="background:${agC(a)}"></span>${a}</td><td>${rows.length}</td><td>${tr3}</td><td><strong>${p2.toFixed(1)}%</strong></td><td><span class="badge ${p2>10?'br':p2>5?'ba':'bg'}">${p2>10?'High':p2>5?'Mid':'Low'}</span></td></tr>`;}).join('');
-    document.getElementById('transfer-detail-tbody').innerHTML=wa.filter(r=>r.handoffReason&&r.handoffReason!=='-'&&r.handoffReason!=='').slice(0,20).map(r=>`<tr><td>${r.ticketId}</td><td>${r.agent.split(' ')[0]}</td><td style="font-size:10px;color:#64748b">${r.handoffReason}</td></tr>`).join('')||'<tr><td colspan="3" style="color:#94a3b8">No transfer details</td></tr>';
+    document.getElementById('transfer-detail-tbody').innerHTML=wa.filter(r=>r.handoffReason&&r.handoffReason!=='-'&&r.handoffReason!=='').slice(0,20).map(r=>`<tr><td>${r.ticketId}</td><td>${r.agent.split(' ')[0]}</td><td style="font-size:10px;color:var(--muted)">${r.handoffReason}</td></tr>`).join('')||'<tr><td colspan="3" style="color:#94a3b8">No transfer details</td></tr>';
   }
 
   if(name==='csat'){
@@ -2117,7 +2491,7 @@ document.getElementById('ai-survey-body').innerHTML = `
     }
 
     }catch(e){console.warn('7-day chart error:',e);}
-    document.getElementById('dsat-tbody').innerHTML=wa.filter(r=>r.csat!==null&&r.csat<=3).sort((a,b)=>a.csat-b.csat).slice(0,50).map(r=>`<tr><td>${r.ticketId}</td><td>${r.agent}</td><td>${r.customer||'-'}</td><td><span class="badge ${r.csat<=2?'br':'ba'}">${r.csat} Star</span></td><td style="font-size:10px;color:#64748b">-</td><td style="font-size:10px;color:#64748b">${r.disposition||'-'}</td><td style="font-size:10px;color:#64748b">${r.product||'-'}</td></tr>`).join('');
+    document.getElementById('dsat-tbody').innerHTML=wa.filter(r=>r.csat!==null&&r.csat<=3).sort((a,b)=>a.csat-b.csat).slice(0,50).map(r=>`<tr><td>${r.ticketId}</td><td>${r.agent}</td><td>${r.customer||'-'}</td><td><span class="badge ${r.csat<=2?'br':'ba'}">${r.csat} Star</span></td><td style="font-size:10px;color:var(--muted)">-</td><td style="font-size:10px;color:var(--muted)">${r.disposition||'-'}</td><td style="font-size:10px;color:var(--muted)">${r.product||'-'}</td></tr>`).join('');
   }
 
   if(name==='roster'){
@@ -2139,18 +2513,18 @@ document.getElementById('ai-survey-body').innerHTML = `
     const scores2=AGENTS.map(a=>({a,...calcScore(a,wa,teamMed,teamFR,hasCsat)})).sort((a,b)=>b.score-a.score);
     document.getElementById('weekoff-section').innerHTML=`
       <div class="info" style="margin-bottom:10px">Lightest day: <strong>${lightDay}</strong>${sd.length?` (${sd[0][1]} chats avg)`:''} — top performers earn this off.</div>
-      <table><thead><tr><th>Rank</th><th>Agent</th><th>Type</th><th>Score</th><th>Day Off</th><th>Reason</th></tr></thead><tbody>
+      <table class="table-standard"><thead><tr><th>Rank</th><th>Agent</th><th>Type</th><th>Score</th><th>Day Off</th><th>Reason</th></tr></thead><tbody>
       ${scores2.map((s,i)=>{
         const isnew2=isNew(s.a);
         const offDay=i<3?lightDay:['Saturday','Friday','Thursday'][i-3]||lightDay;
         const reason=i===0?'Top performer — earns lightest day':i===1?'2nd — lightest day':i===2?'3rd — lightest day':isnew2?'New — rotate for training balance':'Senior — fair rotation';
-        return`<tr><td>${i===0?'&#127942;':i===1?'&#129352;':i===2?'&#129353;':i+1}</td><td><span class="dot" style="background:${agC(s.a)}"></span><strong>${s.a}</strong></td><td><span class="badge ${isnew2?'ba':'bb'}">${isnew2?'New':'Senior'}</span></td><td><strong style="color:${s.score>=75?'#16a34a':s.score>=55?'#ca8a04':'#dc2626'}">${s.score}</strong></td><td><span class="badge bg">${offDay}</span></td><td style="font-size:10px;color:#64748b">${reason}</td></tr>`;
+        return`<tr><td>${i===0?'&#127942;':i===1?'&#129352;':i===2?'&#129353;':i+1}</td><td><span class="dot" style="background:${agC(s.a)}"></span><strong>${s.a}</strong></td><td><span class="badge ${isnew2?'ba':'bb'}">${isnew2?'New':'Senior'}</span></td><td><strong style="color:${s.score>=75?'#16a34a':s.score>=55?'#ca8a04':'#dc2626'}">${s.score}</strong></td><td><span class="badge bg">${offDay}</span></td><td style="font-size:10px;color:var(--muted)">${reason}</td></tr>`;
       }).join('')}</tbody></table>`;
 
     const shiftAssign={};
     AGENTS.forEach(a=>{let best=SHIFT_TIMES[0],bestL=0;SHIFT_TIMES.forEach(sh=>{const l=wa.filter(r=>r.agent===a&&r.hour>=sh.start&&r.hour<sh.start+4).length;if(l>bestL){bestL=l;best=sh;}});shiftAssign[a]=best;});
     const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-    document.getElementById('roster-grid-wrap').innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:11px">
+    document.getElementById('roster-grid-wrap').innerHTML=`<table class="table-standard" style="width:100%;border-collapse:collapse;font-size:11px">
       <thead><tr style="background:#f8fafc">${['Agent',...days].map((d,i)=>{
         const dow=i===0?-1:i===7?0:i;
         const isLight=String(dow)===String(lightDow);
@@ -2276,9 +2650,46 @@ document.getElementById('f-tkt').addEventListener('change',function(e){
 </script>
 
 <div style="text-align:center;padding:18px 10px;color:#94a3b8;font-size:11px;font-weight:600;letter-spacing:.08em">
-  ✨ Made on Mars by Celestial ✨
+  
+</div>
+
+
+
+
+<div class="celestial-footer">
+  <div class="celestial-line"></div>
+  <div>
+    Made in <span class="mars">Mars</span> by
+    <span class="celestial">CELESTIAL</span>
+  </div>
+</div>
+
+
+
+<!-- DaMENSCH Loader -->
+<div id="damensch-loader">
+  <div class="loader-scan"></div>
+
+  <div class="loader-core">
+    <div class="loader-brand" id="loader-brand" data-text="DAMENSCH">
+      DAMENSCH
+    </div>
+
+    <div class="loader-percent" id="loader-percent">
+      INITIALIZING...
+    </div>
+
+    <div class="loader-sub">
+      DAILY SUPPORT INTELLIGENCE SYSTEM
+    </div>
+  </div>
+</div>
+
+  </div>
 </div>
 
 </body>
 
+
 </html>
+<!-- Loader hook fallback added -->
