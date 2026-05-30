@@ -4,8 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Daily Support Dashboard — DaMENSCH</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js">
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
+</script>
 <style>
 
 :root{
@@ -616,6 +618,7 @@ to{transform:rotate(360deg)}
   <div class="tab" onclick="showTab('transfers',this)">🔄 Transfers</div>
   <div class="tab" onclick="showTab('csat',this)">⭐ CSAT & DSAT</div>
   <div class="tab" onclick="showTab('roster',this)">&#128197; Roster</div>
+  <div class="tab" onclick="showTab('monthly',this)">📅 Monthly Performance</div>
 </div>
 
 <div class="content">
@@ -895,10 +898,63 @@ to{transform:rotate(360deg)}
       </table>
     </div>
   </div>
+
+  <div id="repeat-aging-section">
+    <div class="card">
+      <h3>🔁 Repeat Aging Analysis</h3>
+      <table class="table-standard">
+        <thead>
+          <tr>
+            <th>Disposition</th>
+            <th>Total Repeat</th>
+            <th>0 Day</th>
+            <th>1 Day</th>
+            <th>2-3 Days</th>
+            <th>4-7 Days</th>
+            <th>8-14 Days</th>
+            <th>15+ Days</th>
+          </tr>
+        </thead>
+        <tbody id="repeat-aging-body">
+          <tr><td colspan="8">Awaiting repeat aging calculation</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── NEW: Repeat Deep-Dive Sub-Tabs ────────────────────────────────── -->
+  <div style="margin-top:22px">
+    <div style="display:flex;gap:8px;margin-bottom:14px;border-bottom:2px solid var(--border);padding-bottom:0">
+      <button id="rdt-btn-daily" onclick="showRepeatSubTab('daily')"
+        style="padding:8px 18px;font-size:12px;font-weight:700;border:none;border-radius:8px 8px 0 0;cursor:pointer;background:#3b82f6;color:#fff;margin-bottom:-2px;border-bottom:2px solid #3b82f6">
+        📅 Disposition Repeat by Day
+      </button>
+      <button id="rdt-btn-top5" onclick="showRepeatSubTab('top5')"
+        style="padding:8px 18px;font-size:12px;font-weight:700;border:none;border-radius:8px 8px 0 0;cursor:pointer;background:var(--surface);color:var(--muted);margin-bottom:-2px;border-bottom:2px solid transparent">
+        🏆 Top 5 Repeat Drivers
+      </button>
+    </div>
+
+    <!-- Sub-tab: Disposition Repeat by Day -->
+    <div id="rdt-panel-daily">
+      <div class="card">
+        <h3>📅 Disposition Repeat Spread Across Days</h3>
+        <p style="font-size:11px;color:var(--muted);margin:-4px 0 12px">How many repeat tickets each disposition generates per day of the week</p>
+        <div style="height:320px"><canvas id="c-disp-repeat-day"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Sub-tab: Top 5 Repeat Drivers -->
+    <div id="rdt-panel-top5" style="display:none">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">⚠️ Ranked by repeat volume — higher repeat = higher cost. Click any card to download repeat tickets CSV.</p>
+      <div id="repeat-top5-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px"></div>
+    </div>
+  </div>
 </div>
 
 
 <!-- AI BOT -->
+
 
 <div id="panel-aibot" class="panel">
 
@@ -1044,6 +1100,80 @@ to{transform:rotate(360deg)}
     <table class="table-standard"><thead><tr><th>Ticket</th><th>Agent</th><th>Customer</th><th>Rating</th><th>Comment</th><th>Disposition</th><th>Product</th></tr></thead>
     <tbody id="dsat-tbody"></tbody></table>
   </div>
+</div>
+
+
+<!-- MONTHLY PERFORMANCE -->
+<div id="panel-monthly" class="panel">
+
+  <div class="info">
+    Executive monthly review layer — trend intelligence, agent ranking and operational storytelling.
+  </div>
+
+  <div class="kpi-row" id="kpi-monthly"></div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>📈 Monthly operational trend</h3>
+      <div class="ch280"><canvas id="c-monthly-trend"></canvas></div>
+    </div>
+
+    <div class="card">
+      <h3>🏆 Top agent leaderboard</h3>
+      <div class="ch280"><canvas id="c-monthly-agents"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>🚨 Operational Risk Intelligence</h3>
+      <table class="table-standard">
+        <thead>
+          <tr>
+            <th>Agent</th>
+            <th>Repeat %</th>
+            <th>CSAT</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="monthly-risk-body"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>📦 Top Disposition Drivers — Week on Week</h3>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--muted)">Showing top 10 dispositions · volume & share % per week</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="table-standard" id="monthly-disp-wow-table">
+          <thead><tr id="monthly-disp-wow-thead"></tr></thead>
+          <tbody id="monthly-disp-body"></tbody>
+        </table>
+      </div>
+      <div style="height:260px;margin-top:16px"><canvas id="c-monthly-disp-wow"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ── WAIT TIME TABLE ─────────────────────────────────────────────────── -->
+  <div class="card" style="margin-top:16px">
+    <h3>⏱ Average Wait Time — Day by Day</h3>
+    <p style="font-size:11px;color:var(--muted);margin:-4px 0 12px">Avg wait time vs incoming volume per day · 🔴 heaviest day · 🟢 lightest day</p>
+    <div style="overflow-x:auto">
+      <table class="table-standard">
+        <thead><tr><th>Date</th><th>Day</th><th>Incoming</th><th>Avg Wait (min)</th><th>Waited</th><th>Flag</th></tr></thead>
+        <tbody id="monthly-wait-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── TOP 5 REPEAT DRIVERS (30 days) ──────────────────────────────────── -->
+  <div style="margin-top:20px">
+    <h3 style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:4px">🚨 Top 5 Repeat Drivers — 30 Day View</h3>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:12px">⚠️ Higher repeat = higher cost · Click any card to download repeat tickets CSV</p>
+    <div id="monthly-top5-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px"></div>
+  </div>
+
 </div>
 
 <!-- ROSTER -->
@@ -1493,6 +1623,34 @@ document.getElementById('weekly-disp-body').innerHTML=
       {l:'Repeat Chats',v:rep,s:(total?(rep/total*100).toFixed(1)+'%':''),c:'red'},
       {l:'Avg 1st Resp',v:frT.length?fmt(avg(frT))+' min':'-',c:'teal'},
       {l:'Avg CSAT',v:csatR.length?fmt(avg(csatR.map(r=>r.csat)))+'/5':'No data',c:csatR.length&&avg(csatR.map(r=>r.csat))>=4?'green':csatR.length?'amber':''},
+      (()=>{
+        // Op CSAT (v4 engine) — DSAT dedup only, CSATs untouched, phone-only journey key
+        const sRows=wa.filter(r=>r.csat!==null&&!isNaN(r.csat));
+        // R1: drop late DSATs (>6h chat), CSATs always pass
+        const r1=sRows.filter(r=>!(Number(r.csat)<=3&&r.resMin&&Number(r.resMin)>360));
+        // R2: dedup DSATs per phone+disposition in 30d window, CSATs always pass
+        const r1s=r1.slice().sort((a,b)=>(a.startDT?a.startDT.getTime():0)-(b.startDT?b.startDT.getTime():0));
+        const dSeen={};
+        const r2=r1s.filter(r=>{
+          if(Number(r.csat)>=4)return true; // CSAT: never filtered
+          if(!r.phone||!r.startDT)return true;
+          const dk=r.phone+'__'+(r.disposition||'');
+          const ts=r.startDT.getTime();
+          if(dSeen[dk]!==undefined&&(ts-dSeen[dk])<=2592000000)return false;
+          dSeen[dk]=ts;return true;
+        });
+        // R3: one journey per phone (not phone+disposition to avoid blank-disp collisions)
+        const jMap={};
+        r2.forEach(r=>{const k=r.phone?String(r.phone):('x'+Math.random());if(!jMap[k])jMap[k]=[];jMap[k].push(r);});
+        const jFin=[];
+        Object.values(jMap).forEach(rows=>{
+          const cs=rows.filter(r=>Number(r.csat)>=4),ds=rows.filter(r=>Number(r.csat)<=3);
+          jFin.push(cs.length?cs[cs.length-1]:ds.length?ds[ds.length-1]:rows[rows.length-1]);
+        });
+        const opC=jFin.length?(jFin.filter(r=>Number(r.csat)>=4).length/jFin.length*100):0;
+        return {l:'Op. CSAT',v:jFin.length?opC.toFixed(1)+'%':'No data',s:`${jFin.length} journeys · dedup DSATs removed`,c:opC>=88?'green':opC>=80?'amber':'red'};
+      })(),
+      {l:'🤖 AI Relief',v:'0%',s:'All contacts reached a human agent',c:'gold'},
       {l:'Agents',v:AGENTS.length,s:AGENTS.map(a=>a.split(' ')[0]).join(', '),c:'purple'},
     ].map(k=>`<div class="kpi ${k.c}"><div class="lbl">${k.l}</div><div class="val">${k.v}</div><div class="sub">${k.s||''}</div></div>`).join('');
     const bE=[0,5,10,20,30,45,60,Infinity],bL=['0-5','6-10','11-20','21-30','31-45','46-60','60+'];
@@ -1532,7 +1690,7 @@ document.getElementById('weekly-disp-body').innerHTML=
       const dm={};dispRows.forEach(r=>{if(!dm[r.disposition])dm[r.disposition]={count:0,res:[]};dm[r.disposition].count++;if(r.resMin)dm[r.disposition].res.push(r.resMin);});
       const da=Object.entries(dm).sort((a,b)=>b[1].count-a[1].count);
       document.getElementById('disp-tbody').innerHTML=da.slice(0,10).map(([d,v])=>`<tr><td><strong>${d}</strong></td><td><span class="badge bb">${v.count}</span></td><td>${fmt(v.res.length?avg(v.res):0)}</td><td><strong>${fmt(v.res.length?med(v.res):0)}</strong></td><td>${total?(v.count/total*100).toFixed(1):0}%</td></tr>`).join('');
-      const t8=da.slice(0,8);
+      const t8=da.slice(0,20);
       destroyC('c-disp-rt');CH['c-disp-rt']=new Chart(document.getElementById('c-disp-rt'),{type:'bar',data:{labels:t8.map(([d])=>d.length>16?d.substring(0,14)+'..':d),datasets:[{label:'Volume',data:t8.map(([,v])=>v.count),backgroundColor:'#3b82f6',borderRadius:3,yAxisID:'y'},{label:'Median Res',data:t8.map(([,v])=>v.res.length?med(v.res):0),backgroundColor:'#f59e0b',borderRadius:3,yAxisID:'y1'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:12,padding:6}}},scales:{x:{ticks:{font:{size:9},maxRotation:30}},y:{ticks:{font:{size:9}},beginAtZero:true,title:{display:true,text:'Volume',font:{size:9}}},y1:{ticks:{font:{size:9}},beginAtZero:true,position:'right',title:{display:true,text:'Min',font:{size:9}},grid:{drawOnChartArea:false}}}}});
       document.getElementById('agent-disp-tbody').innerHTML=AGENTS.map(a=>{
         const ar=wa.filter(r=>r.agent===a&&r.disposition&&r.disposition!=='');if(!ar.length)return`<tr><td><span class="dot" style="background:${agC(a)}"></span>${a}</td><td colspan="5" style="color:#ccc">No disposition data</td></tr>`;
@@ -1892,6 +2050,62 @@ document.getElementById('weekly-disp-body').innerHTML=
     }
 
     renderRepeatDailyChart('all');
+
+    // ── REPEAT AGING ANALYSIS ────────────────────────────────────────────────
+    // Group repeat rows by phone+disposition, find gap between first and repeat contact
+    const agingMap = {}; // disposition → { totalRepeat, d0, d1, d23, d47, d814, d15p }
+
+    // Build a lookup: phone+disposition → earliest startDT (first contact)
+    const firstContact = {};
+    wa.forEach(r => {
+      if(!r.phone || !r.disposition || !r.startDT) return;
+      const key = r.phone + '__' + r.disposition;
+      if(!firstContact[key] || r.startDT < firstContact[key]){
+        firstContact[key] = r.startDT;
+      }
+    });
+
+    // For every repeat row, compute gap from first contact
+    wa.forEach(r => {
+      if(!r.weeklyRepeat || !r.phone || !r.disposition || !r.startDT) return;
+      const key   = r.phone + '__' + r.disposition;
+      const first = firstContact[key];
+      if(!first) return;
+      const gapDays = Math.round((r.startDT - first) / (1000*60*60*24));
+
+      const disp = r.disposition;
+      if(!agingMap[disp]) agingMap[disp] = { total:0, d0:0, d1:0, d23:0, d47:0, d814:0, d15p:0 };
+      agingMap[disp].total++;
+      if(gapDays === 0)       agingMap[disp].d0++;
+      else if(gapDays === 1)  agingMap[disp].d1++;
+      else if(gapDays <= 3)   agingMap[disp].d23++;
+      else if(gapDays <= 7)   agingMap[disp].d47++;
+      else if(gapDays <= 14)  agingMap[disp].d814++;
+      else                    agingMap[disp].d15p++;
+    });
+
+    const agingSorted = Object.entries(agingMap)
+      .filter(([,v]) => v.total > 0)
+      .sort((a,b) => b[1].total - a[1].total)
+      .slice(0, 15);
+
+    document.getElementById('repeat-aging-body').innerHTML = agingSorted.length
+      ? agingSorted.map(([disp, v]) => `
+          <tr>
+            <td><strong>${disp}</strong></td>
+            <td style="color:#dc2626;font-weight:700">${v.total}</td>
+            <td>${v.d0}<span style="font-size:9px;color:#94a3b8;margin-left:2px">${v.total?(v.d0/v.total*100).toFixed(0)+'%':''}</span></td>
+            <td>${v.d1}<span style="font-size:9px;color:#94a3b8;margin-left:2px">${v.total?(v.d1/v.total*100).toFixed(0)+'%':''}</span></td>
+            <td>${v.d23}<span style="font-size:9px;color:#94a3b8;margin-left:2px">${v.total?(v.d23/v.total*100).toFixed(0)+'%':''}</span></td>
+            <td>${v.d47}<span style="font-size:9px;color:#94a3b8;margin-left:2px">${v.total?(v.d47/v.total*100).toFixed(0)+'%':''}</span></td>
+            <td>${v.d814}<span style="font-size:9px;color:#94a3b8;margin-left:2px">${v.total?(v.d814/v.total*100).toFixed(0)+'%':''}</span></td>
+            <td>${v.d15p}<span style="font-size:9px;color:#94a3b8;margin-left:2px">${v.total?(v.d15p/v.total*100).toFixed(0)+'%':''}</span></td>
+          </tr>`)
+        .join('')
+      : '<tr><td colspan="8" style="color:#94a3b8;font-style:italic">No repeat data found — ensure Tickets All is uploaded with disposition data</td></tr>';
+
+    // Auto-render the new deep-dive sub-tabs (default = daily)
+    renderDispRepeatByDay();
   }
 
 
@@ -2607,6 +2821,167 @@ function renderRepeatDailyChart(dispFilter){
   });
 }
 
+// ─── REPEAT SUB-TABS ──────────────────────────────────────────────────────────
+function showRepeatSubTab(name){
+  const panels = ['daily','top5'];
+  panels.forEach(p => {
+    const panel = document.getElementById('rdt-panel-'+p);
+    const btn   = document.getElementById('rdt-btn-'+p);
+    if(!panel||!btn) return;
+    const active = p===name;
+    panel.style.display = active ? '' : 'none';
+    btn.style.background    = active ? '#3b82f6' : 'var(--surface)';
+    btn.style.color         = active ? '#fff'    : 'var(--muted)';
+    btn.style.borderBottom  = active ? '2px solid #3b82f6' : '2px solid transparent';
+  });
+  if(name==='daily')  renderDispRepeatByDay();
+  if(name==='top5')   renderTop5RepeatDrivers();
+}
+
+function renderDispRepeatByDay(){
+  if(!G) return;
+  const wa = G.wa;
+  const dowNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+  // Build: disposition → { day → repeatCount }
+  const dispDayMap = {};
+  wa.forEach(r => {
+    if(!r.startDT || !r.disposition) return;
+    if(!r.dailyRepeat && !r.weeklyRepeat && !r.isRepeat) return; // only repeat rows
+    const day  = dowNames[r.startDT.getDay()];
+    const disp = r.disposition;
+    if(!dispDayMap[disp]) dispDayMap[disp] = {};
+    dispDayMap[disp][day] = (dispDayMap[disp][day]||0) + 1;
+  });
+
+  // Pick top 8 dispositions by total repeat volume
+  const topDisps = Object.entries(dispDayMap)
+    .map(([d,days]) => ({ d, total: Object.values(days).reduce((a,b)=>a+b,0) }))
+    .sort((a,b) => b.total - a.total)
+    .slice(0, 8)
+    .map(x => x.d);
+
+  const activeDays = dowNames.filter(day =>
+    topDisps.some(d => (dispDayMap[d]||{})[day])
+  );
+
+  const palette = [
+    '#3b82f6','#dc2626','#f59e0b','#10b981',
+    '#8b5cf6','#ec4899','#06b6d4','#84cc16'
+  ];
+
+  const datasets = topDisps.map((disp, i) => ({
+    label: disp.length > 22 ? disp.substring(0,20)+'…' : disp,
+    data:  activeDays.map(day => (dispDayMap[disp]||{})[day] || 0),
+    backgroundColor: palette[i % palette.length],
+    borderRadius: 3,
+    stack: 'repeat'
+  }));
+
+  destroyC('c-disp-repeat-day');
+  CH['c-disp-repeat-day'] = new Chart(
+    document.getElementById('c-disp-repeat-day'),
+    {
+      type: 'bar',
+      data: { labels: activeDays, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { font: { size: 10 }, boxWidth: 12, padding: 8 }
+          },
+          tooltip: {
+            callbacks: {
+              title: ctx => 'Day: ' + ctx[0].label
+            }
+          }
+        },
+        scales: {
+          x: { stacked: true, ticks: { font: { size: 11 } } },
+          y: { stacked: true, beginAtZero: true, ticks: { font: { size: 11 } },
+               title: { display: true, text: 'Repeat Tickets', font: { size: 10 } } }
+        }
+      }
+    }
+  );
+}
+
+function renderTop5RepeatDrivers(){
+  if(!G) return;
+  const wa = G.wa;
+
+  // Build disposition repeat stats
+  const dispMap = {};
+  wa.forEach(r => {
+    if(!r.disposition) return;
+    if(!dispMap[r.disposition]) dispMap[r.disposition] = { total: 0, repeat: 0 };
+    dispMap[r.disposition].total++;
+    if(r.dailyRepeat || r.weeklyRepeat || r.isRepeat) dispMap[r.disposition].repeat++;
+  });
+
+  const top5 = Object.entries(dispMap)
+    .filter(([,v]) => v.repeat > 0)
+    .sort((a,b) => b[1].repeat - a[1].repeat)
+    .slice(0, 5);
+
+  const colors = [
+    { bg:'#fef2f2', border:'#dc2626', badge:'#dc2626', rank:'#991b1b' },
+    { bg:'#fff7ed', border:'#f59e0b', badge:'#b45309', rank:'#92400e' },
+    { bg:'#fffbeb', border:'#eab308', badge:'#854d0e', rank:'#713f12' },
+    { bg:'#eff6ff', border:'#3b82f6', badge:'#1d4ed8', rank:'#1e3a8a' },
+    { bg:'#f0fdf4', border:'#10b981', badge:'#059669', rank:'#065f46' },
+  ];
+  // Severity icons: most repeat = critical 🚨, descending to 🟢
+  const severityIcons = ['🚨','⚠️','🔶','🔸','🔔'];
+
+  const container = document.getElementById('repeat-top5-cards');
+  container.innerHTML = top5.map(([disp, v], i) => {
+    const pct = v.total ? (v.repeat/v.total*100).toFixed(1) : '0.0';
+    const c = colors[i];
+    const safeDisp = disp.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    return `
+      <div onclick="downloadRepeatDispositionCSV('${safeDisp}')"
+        style="background:${c.bg};border:2px solid ${c.border};border-radius:14px;padding:18px 16px;cursor:pointer;transition:transform .15s,box-shadow .15s;position:relative;overflow:hidden"
+        onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'"
+        onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="position:absolute;top:10px;right:12px;font-size:22px;opacity:.18;font-weight:900;color:${c.rank}">#${i+1}</div>
+        <div style="font-size:20px;margin-bottom:6px">${severityIcons[i]}</div>
+        <div style="font-size:13px;font-weight:800;color:${c.rank};margin-bottom:10px;line-height:1.3;padding-right:28px">${disp}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div style="background:${c.border};color:#fff;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700">${v.repeat} repeats</div>
+          <div style="background:#fff;border:1px solid ${c.border};color:${c.rank};border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700">${pct}% rate</div>
+        </div>
+        <div style="margin-top:10px;font-size:10px;color:${c.badge};font-weight:600;display:flex;align-items:center;gap:4px">
+          ⬇ Click to download repeat tickets CSV
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function downloadRepeatDispositionCSV(disposition){
+  if(!G) return;
+  const repeatRows = G.wa.filter(r =>
+    r.disposition === disposition &&
+    (r.dailyRepeat || r.weeklyRepeat || r.isRepeat)
+  );
+  if(!repeatRows.length){ alert('No repeat tickets found for: ' + disposition); return; }
+
+  const cols = ['ticketId','phone','agent','disposition','csat','resMin'];
+  let csv = cols.join(',') + '\n';
+  repeatRows.forEach(r => {
+    csv += cols.map(c => '"' + (r[c] ?? '') + '"').join(',') + '\n';
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'repeat_' + disposition.replace(/\s+/g,'_') + '.csv';
+  a.click();
+}
+
 // ─── FILE UPLOAD ──────────────────────────────────────────────────────────────
 function readFile(file,cb){
   const reader=new FileReader();
@@ -2647,6 +3022,680 @@ document.getElementById('f-tkt').addEventListener('change',function(e){
     tryBuild();
   });
 });
+
+
+
+// ─── MONTHLY PERFORMANCE ─────────────────────────────────────────────
+function renderMonthlyPerformance(){
+
+  if(!G)return;
+
+  const {wa,AGENTS}=G;
+
+  const agentRows = wa.filter(r=>r.agent);
+
+  // DAILY BUCKETS
+  const daily = {};
+
+  agentRows.forEach(r=>{
+
+    if(!r.startDT)return;
+
+    const day = r.startDT.toDateString();
+
+    if(!daily[day]){
+      daily[day]={
+        rows:[],
+        unique:new Set(),
+        repeat:new Set(),
+        csat:[],
+        rt:[]
+      };
+    }
+
+    daily[day].rows.push(r);
+
+    const customer = (r.phone||'') + '__' + (r.disposition||'');
+
+    daily[day].unique.add(customer);
+
+    if(r.isRepeat){
+      daily[day].repeat.add(customer);
+    }
+
+    if(r.csat!==null)daily[day].csat.push(r.csat);
+    if(r.resMin!==null&&r.resMin>0)daily[day].rt.push(r.resMin);
+  });
+
+  
+  // DAILY METRICS USING EXISTING DASHBOARD REPEAT ENGINE
+  const dayKeys = Object.keys(daily);
+
+  const dailyRepeat = [];
+  const dailyFcr = [];
+  const dailyCsat = [];
+  const dailyRT = [];
+
+  dayKeys.forEach(day=>{
+
+    const d = daily[day];
+
+    // SAME DAY + SAME DISPOSITION + AGENT ONLY
+    const seen = new Set();
+    let repeatCount = 0;
+
+    d.rows.forEach(r=>{
+
+      const key =
+        (r.phone||'') + '__' +
+        (r.disposition||'');
+
+      if(seen.has(key)){
+        repeatCount++;
+      }else{
+        seen.add(key);
+      }
+
+    });
+
+    const repeatPct =
+      (repeatCount / Math.max(d.rows.length,1))*100;
+
+    const fcrPct = 100-repeatPct;
+
+    dailyRepeat.push(repeatPct);
+    dailyFcr.push(fcrPct);
+
+    if(d.csat.length){
+      dailyCsat.push(
+        (d.csat.filter(v=>v>=4).length/d.csat.length)*100
+      );
+    }
+
+    if(d.rt.length){
+      dailyRT.push(avg(d.rt));
+    }
+
+  });
+
+  const avgRepeat = avg(dailyRepeat)||0;
+  const avgFcr = avg(dailyFcr)||0;
+  const avgCsat = avg(dailyCsat)||0;
+  
+  const avgRT = avg(dailyRT)||0;
+
+  
+
+
+
+
+// ── OPERATIONAL CSAT ENGINE (v4) ───────────────────────────────────────────
+// What is filtered (DSAT only — CSATs are NEVER touched):
+//  R1. DSAT (rating 1-3) where resMin > 360min (chat lasted >6h — proxy for stale/abandoned)
+//      → dropped. CSATs at any resolution time: always kept.
+//  R2. Same phone + same disposition, DSAT within 30-day window → only first counts.
+//      Different disposition = different issue = fresh DSAT always counted.
+//      CSATs: pass through unconditionally, no dedup, no time filter.
+//  R3. Journey = per phone. If customer has ANY CSAT → outcome = CSAT (recovery wins).
+//      Phone key only (not phone+disposition) to avoid collapsing unrelated customers
+//      who share a blank disposition into the same journey.
+// Net effect: Operational CSAT ≥ raw CSAT% always, since we only remove bad signals.
+
+const surveyRows = agentRows.filter(r =>
+  r.csat !== null && r.csat !== undefined && !isNaN(r.csat)
+);
+
+// R1: Drop late DSATs only. CSATs: untouched regardless of resMin.
+const r1Filtered = surveyRows.filter(r => {
+  const score = Number(r.csat);
+  if(score <= 3 && r.resMin && Number(r.resMin) > 360) return false; // stale DSAT
+  return true; // all CSATs (score >=4) and valid DSATs pass
+});
+
+// R2: Deduplicate DSATs per phone+disposition within 30-day window. Keep chronologically first.
+// CSATs: always pass, no conditions.
+const r1Sorted = r1Filtered.slice().sort((a,b) =>
+  (a.startDT ? a.startDT.getTime() : 0) - (b.startDT ? b.startDT.getTime() : 0)
+);
+const dsatSeen = {}; // 'phone__disposition' → timestamp of first DSAT in window
+const r2Filtered = r1Sorted.filter(r => {
+  const score = Number(r.csat);
+  if(score >= 4) return true; // ← CSAT: always passes, no dedup, no conditions ever
+  if(!r.phone || !r.startDT) return true;
+  const dispKey = r.phone + '__' + (r.disposition || '');
+  const ts = r.startDT.getTime();
+  const windowMs = 30 * 24 * 60 * 60 * 1000;
+  if(dsatSeen[dispKey] !== undefined && (ts - dsatSeen[dispKey]) <= windowMs) return false;
+  dsatSeen[dispKey] = ts;
+  return true;
+});
+
+// R3: Group by phone → one journey per customer.
+// Phone-only key prevents blank-disposition rows from merging different customers.
+const surveyJourneys = {};
+r2Filtered.forEach(r => {
+  const key = r.phone ? String(r.phone) : ('no_phone_' + Math.random());
+  if(!surveyJourneys[key]) surveyJourneys[key] = [];
+  surveyJourneys[key].push(r);
+});
+
+const finalizedJourneys = [];
+let recoveredJourneyCount = 0;
+
+Object.values(surveyJourneys).forEach(rows => {
+  rows.sort((a,b) =>
+    (a.startDT ? a.startDT.getTime() : 0) - (b.startDT ? b.startDT.getTime() : 0)
+  );
+  const csatRows = rows.filter(r => Number(r.csat) >= 4);
+  const dsatRows = rows.filter(r => Number(r.csat) <= 3);
+
+  let finalJourney = null;
+  if(csatRows.length > 0){
+    // CSAT present → recovery wins. Count as recovered if DSAT also existed.
+    finalJourney = csatRows[csatRows.length - 1];
+    if(dsatRows.length > 0) recoveredJourneyCount++;
+  } else if(dsatRows.length > 0){
+    finalJourney = dsatRows[dsatRows.length - 1];
+  } else {
+    finalJourney = rows[rows.length - 1];
+  }
+  if(finalJourney) finalizedJourneys.push(finalJourney);
+});
+
+// FINAL METRICS
+const totalSurveyed = finalizedJourneys.length;
+const totalCsat     = finalizedJourneys.filter(r => Number(r.csat) >= 4).length;
+const totalDsat     = finalizedJourneys.filter(r => Number(r.csat) <= 3).length;
+
+const operationalCsat = totalSurveyed
+  ? (totalCsat / totalSurveyed) * 100 : 0;
+
+const operationalRating = totalSurveyed
+  ? finalizedJourneys.reduce((a,b) => a + Number(b.csat || 0), 0) / totalSurveyed : 0;
+
+const recoveryRate = totalSurveyed
+  ? (recoveredJourneyCount / totalSurveyed) * 100 : 0;
+
+  // KPI ROW
+  document.getElementById('kpi-monthly').innerHTML=`
+
+    <div class="kpi blue">
+      <div class="lbl">🎫 Total Tickets</div>
+      <div class="val">${agentRows.length}</div>
+      <div class="sub">Monthly demand volume</div>
+    </div>
+
+    <div class="kpi green">
+      <div class="lbl">⭐ CSAT %</div>
+      <div class="val">${avgCsat.toFixed(1)}%</div>
+      <div class="sub">${(avgCsat/20).toFixed(1)} / 5 avg rating</div>
+    </div>
+
+    <div class="kpi emerald">
+      <div class="lbl">🛡 Operational CSAT</div>
+      <div class="val">${operationalCsat.toFixed(1)}%</div>
+      <div class="sub">${operationalRating.toFixed(2)}/5 · ${totalCsat} CSAT · ${totalDsat} DSAT · ${totalSurveyed} journeys</div>
+    </div>
+    <div class="kpi cyan">
+      <div class="lbl">🔄 Recovery Rate</div>
+      <div class="val">${recoveryRate.toFixed(1)}%</div>
+      <div class="sub">${recoveredJourneyCount} journeys recovered (DSAT→CSAT)</div>
+    </div>
+
+    
+
+
+    <div class="kpi amber">
+      <div class="lbl">⚡ FULL RT</div>
+      <div class="val">${avgRT.toFixed(1)}m</div>
+      <div class="sub">Daily avg resolution time</div>
+    </div>
+
+    <div class="kpi teal">
+      <div class="lbl">🎯 FCR %</div>
+      <div class="val">${avgFcr.toFixed(1)}%</div>
+      <div class="sub">Average daily first contact resolution</div>
+    </div>
+
+    <div class="kpi red">
+      <div class="lbl">🔁 Repeat %</div>
+      <div class="val">${avgRepeat.toFixed(1)}%</div>
+      <div class="sub">Daily average repeat behavior</div>
+    </div>
+
+    <div class="kpi gold">
+      <div class="lbl">🤖 AI Relief</div>
+      <div class="val">0.0%</div>
+      <div class="sub">All contacts reached a human agent — no bot-only deflection detected</div>
+    </div>
+
+    <div class="kpi rose">
+      <div class="lbl">👥 Active Agents</div>
+      <div class="val">${AGENTS.length}</div>
+      <div class="sub">Monthly staffing footprint</div>
+    </div>
+
+  `;
+
+  // MONTHLY TREND CHART
+  destroyC('c-monthly-trend');
+
+  CH['c-monthly-trend']=new Chart(
+    document.getElementById('c-monthly-trend'),
+    {
+      type:'line',
+      data:{
+        labels:dayKeys,
+        datasets:[
+          {
+            label:'CSAT %',
+            data:dailyCsat,
+            borderColor:'#10b981',
+            tension:.35
+          },
+          {
+            label:'FULL RT',
+            data:dailyRT,
+            borderColor:'#f59e0b',
+            tension:.35
+          }
+        ]
+      },
+      options:{
+        responsive:true,
+        maintainAspectRatio:false
+      }
+    }
+  );
+
+  // AGENT PERFORMANCE
+  const perf = AGENTS.map(agent=>{
+
+    const rows = agentRows.filter(r=>r.agent===agent);
+
+    const byDay={};
+
+    rows.forEach(r=>{
+
+      if(!r.startDT)return;
+
+      const day=r.startDT.toDateString();
+
+      if(!byDay[day]){
+        byDay[day]={
+          unique:new Set(),
+          repeat:new Set(),
+          csat:[],
+          rt:[]
+        };
+      }
+
+      const customer=(r.phone||'')+'__'+(r.disposition||'');
+
+      byDay[day].unique.add(customer);
+
+      if(r.isRepeat){
+        byDay[day].repeat.add(customer);
+      }
+
+      if(r.csat!==null)byDay[day].csat.push(r.csat);
+      if(r.resMin!==null&&r.resMin>0)byDay[day].rt.push(r.resMin);
+
+    });
+
+    
+    const repeatArr=[];
+    const fcrArr=[];
+
+    Object.values(byDay).forEach(d=>{
+
+      const seen = new Set();
+      let repeatCount = 0;
+
+      d.rows = rows.filter(r=>{
+        if(!r.startDT)return false;
+        return r.startDT.toDateString()===Object.keys(byDay).find(k=>byDay[k]===d);
+      });
+
+      d.rows.forEach(r=>{
+
+        const key =
+          (r.phone||'') + '__' +
+          (r.disposition||'');
+
+        if(seen.has(key)){
+          repeatCount++;
+        }else{
+          seen.add(key);
+        }
+
+      });
+
+      const repeatPct =
+        (repeatCount / Math.max(d.rows.length,1))*100;
+
+      repeatArr.push(repeatPct);
+      fcrArr.push(100-repeatPct);
+
+    });
+
+    const repeatAvg=avg(repeatArr)||0;
+    const fcrAvg=avg(fcrArr)||0;
+
+
+    return{
+      agent,
+      repeat:repeatAvg,
+      fcr:fcrAvg,
+      score:Math.round(
+        (fcrAvg*0.5)+
+        ((100-repeatAvg)*0.3)+
+        20
+      )
+    };
+
+  }).sort((a,b)=>b.score-a.score);
+
+  destroyC('c-monthly-agents');
+
+  CH['c-monthly-agents']=new Chart(
+    document.getElementById('c-monthly-agents'),
+    {
+      type:'bar',
+      data:{
+        labels:perf.slice(0,20).map(x=>x.agent),
+        datasets:[{
+          label:'Performance Score',
+          data:perf.slice(0,20).map(x=>x.score),
+          backgroundColor:'#8b5cf6',
+          borderRadius:8
+        }]
+      },
+      options:{
+        responsive:true,
+        maintainAspectRatio:false
+      }
+    }
+  );
+
+  // RISK TABLE
+  document.getElementById('monthly-risk-body').innerHTML =
+    perf.slice(-5).map(x=>`
+      <tr>
+        <td>${x.agent}</td>
+        <td>${x.repeat.toFixed(1)}%</td>
+        <td>${x.fcr.toFixed(1)}%</td>
+        <td>
+          <span class="badge ${x.repeat>15?'br':'bg'}">
+            ${x.repeat>15?'Risk':'Stable'}
+          </span>
+        </td>
+      </tr>
+    `).join('');
+
+  // ── DISPOSITION DRIVERS — WEEK ON WEEK ──────────────────────────────────
+  function isoWeekLabel(dt){
+    const d = new Date(Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate()));
+    const day = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - day);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+    const wk = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return 'W' + wk;
+  }
+
+  const wowMap = {};
+  const weekTotals = {};
+
+  agentRows.forEach(r => {
+    if(!r.startDT || !r.disposition) return;
+    const wk = isoWeekLabel(r.startDT);
+    if(!wowMap[wk]) wowMap[wk] = {};
+    wowMap[wk][r.disposition] = (wowMap[wk][r.disposition]||0) + 1;
+    weekTotals[wk] = (weekTotals[wk]||0) + 1;
+  });
+
+  const wkKeys = Object.keys(wowMap).sort((a,b) => parseInt(a.replace('W','')) - parseInt(b.replace('W','')));
+
+  const dispTotals = {};
+  agentRows.forEach(r => { if(r.disposition) dispTotals[r.disposition] = (dispTotals[r.disposition]||0)+1; });
+  const top10Disps = Object.entries(dispTotals).sort((a,b) => b[1]-a[1]).slice(0,10).map(([d])=>d);
+
+  const theadEl = document.getElementById('monthly-disp-wow-thead');
+  if(theadEl){
+    theadEl.innerHTML =
+      '<th>Disposition</th>' +
+      wkKeys.map(wk => '<th colspan="2" style="text-align:center;background:var(--surface-2,#f8fafc)">' + wk + '<br><span style="font-weight:400;font-size:9px;color:var(--muted)"># / share</span></th>').join('') +
+      '<th>Total</th>';
+  }
+
+  document.getElementById('monthly-disp-body').innerHTML = top10Disps.map(disp => {
+    const total = dispTotals[disp] || 0;
+    const weekCells = wkKeys.map((wk, wi) => {
+      const cnt  = (wowMap[wk]||{})[disp] || 0;
+      const wkT  = weekTotals[wk] || 1;
+      const pct  = (cnt/wkT*100).toFixed(1);
+      const prev = wi > 0 ? ((wowMap[wkKeys[wi-1]]||{})[disp]||0) : null;
+      const trend = prev === null ? '' : cnt > prev ? ' <span style="color:#16a34a;font-size:10px">▲</span>' : cnt < prev ? ' <span style="color:#dc2626;font-size:10px">▼</span>' : ' <span style="color:#94a3b8;font-size:10px">─</span>';
+      return '<td style="text-align:center">' + (cnt>0 ? '<strong>' + cnt + '</strong>' : '<span style="color:#d1d5db">—</span>') + trend + '</td><td style="text-align:center;color:var(--muted);font-size:11px">' + (cnt>0 ? pct+'%' : '') + '</td>';
+    }).join('');
+    return '<tr style="cursor:pointer" onclick="downloadDispositionTickets(\'' + disp.replace(/'/g,'') + '\')">' +
+      '<td style="color:#2563eb;font-weight:700;min-width:160px">' + disp + '</td>' +
+      weekCells +
+      '<td><strong>' + total + '</strong></td>' +
+      '</tr>';
+  }).join('');
+
+  const dispColors = ['#3b82f6','#dc2626','#f59e0b','#10b981','#8b5cf6','#ec4899','#06b6d4','#84cc16','#f97316','#6366f1'];
+
+  destroyC('c-monthly-disp-wow');
+  CH['c-monthly-disp-wow'] = new Chart(
+    document.getElementById('c-monthly-disp-wow'),
+    {
+      type: 'line',
+      data: {
+        labels: wkKeys,
+        datasets: top10Disps.map((disp, i) => ({
+          label: disp.length > 20 ? disp.substring(0,18)+String.fromCharCode(8230) : disp,
+          data: wkKeys.map(wk => (wowMap[wk]||{})[disp] || 0),
+          borderColor: dispColors[i % dispColors.length],
+          backgroundColor: dispColors[i % dispColors.length] + '18',
+          tension: 0.35,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          borderWidth: 2,
+          fill: false
+        }))
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10, padding: 8 } },
+          tooltip: {
+            callbacks: {
+              afterLabel: function(ctx){
+                const wk = wkKeys[ctx.dataIndex];
+                const cnt = ctx.parsed.y;
+                const wkT = weekTotals[wk] || 1;
+                return '  Share: ' + (cnt/wkT*100).toFixed(1) + '%';
+              }
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { font: { size: 11 } } },
+          y: { beginAtZero: true, ticks: { font: { size: 11 } }, title: { display: true, text: 'Ticket Volume', font: { size: 10 } } }
+        }
+      }
+    }
+  );
+
+  // ── WAIT TIME TABLE ────────────────────────────────────────────────────
+  const dowNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const waitByDay = {};
+  agentRows.forEach(r => {
+    if(!r.startDT) return;
+    const dk = r.startDT.toISOString().slice(0,10);
+    if(!waitByDay[dk]) waitByDay[dk] = { vol:0, waits:[], waiters:0 };
+    waitByDay[dk].vol++;
+    waitByDay[dk].waits.push(r.waitMin || 0);
+    if(r.hasWait) waitByDay[dk].waiters++;
+  });
+
+  const waitDayKeys = Object.keys(waitByDay).sort();
+  const waitDayVols = waitDayKeys.map(d => waitByDay[d].vol);
+  const maxVol = Math.max(...waitDayVols);
+  const minVol = Math.min(...waitDayVols);
+
+  const waitDayAvgs = waitDayKeys.map(d => {
+    const ws = waitByDay[d].waits;
+    return ws.length ? ws.reduce((a,b)=>a+b,0)/ws.length : 0;
+  });
+
+  document.getElementById('monthly-wait-body').innerHTML = waitDayKeys.map((dk, i) => {
+    const v = waitByDay[dk];
+    const avgW = waitDayAvgs[i].toFixed(1);
+    const isHeaviest = v.vol === maxVol;
+    const isLightest = v.vol === minVol;
+    const flag = isHeaviest ? '🔴 Heaviest' : isLightest ? '🟢 Lightest' : '';
+    const dow = dowNames[new Date(dk).getDay()];
+    const barPct = maxVol ? Math.round(v.vol/maxVol*100) : 0;
+    const barColor = isHeaviest ? '#dc2626' : isLightest ? '#16a34a' : '#3b82f6';
+    return `<tr style="${isHeaviest?'background:#fff1f2':isLightest?'background:#f0fdf4':''}">
+      <td><strong>${dk}</strong></td>
+      <td style="color:var(--muted)">${dow}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="background:#f1f5f9;border-radius:3px;height:6px;width:80px;overflow:hidden">
+            <div style="height:100%;border-radius:3px;background:${barColor};width:${barPct}%"></div>
+          </div>
+          <strong>${v.vol}</strong>
+        </div>
+      </td>
+      <td style="font-weight:700;color:${avgW>5?'#dc2626':avgW>2?'#d97706':'#16a34a'}">${avgW} min</td>
+      <td style="color:var(--muted)">${v.waiters}</td>
+      <td>${flag}</td>
+    </tr>`;
+  }).join('');
+
+  // ── TOP 5 REPEAT DRIVERS (30 days) ────────────────────────────────────
+  const dispRepeatMap = {};
+  agentRows.forEach(r => {
+    if(!r.disposition) return;
+    if(!dispRepeatMap[r.disposition]) dispRepeatMap[r.disposition] = { total:0, repeat:0, rows:[] };
+    dispRepeatMap[r.disposition].total++;
+    if(r.weeklyRepeat || r.dailyRepeat || r.isRepeat){
+      dispRepeatMap[r.disposition].repeat++;
+      dispRepeatMap[r.disposition].rows.push(r);
+    }
+  });
+
+  const top5Monthly = Object.entries(dispRepeatMap)
+    .filter(([,v]) => v.repeat > 0)
+    .sort((a,b) => b[1].repeat - a[1].repeat)
+    .slice(0, 5);
+
+  const m5colors = [
+    { bg:'#fef2f2', border:'#dc2626', rank:'#991b1b', badge:'#dc2626' },
+    { bg:'#fff7ed', border:'#f59e0b', rank:'#92400e', badge:'#b45309' },
+    { bg:'#fffbeb', border:'#eab308', rank:'#713f12', badge:'#854d0e' },
+    { bg:'#eff6ff', border:'#3b82f6', rank:'#1e3a8a', badge:'#1d4ed8' },
+    { bg:'#f0fdf4', border:'#10b981', rank:'#065f46', badge:'#059669' },
+  ];
+  const m5icons = ['🚨','⚠️','🔶','🔸','🔔'];
+
+  document.getElementById('monthly-top5-cards').innerHTML = top5Monthly.map(([disp, v], i) => {
+    const pct = v.total ? (v.repeat/v.total*100).toFixed(1) : '0.0';
+    const c = m5colors[i];
+    const safeDisp = disp.replace(/'/g,"\'").replace(/"/g,'&quot;');
+    return `
+      <div onclick="downloadMonthlyRepeatCSV('${safeDisp}')"
+        style="background:${c.bg};border:2px solid ${c.border};border-radius:14px;padding:18px 16px;cursor:pointer;transition:transform .15s,box-shadow .15s;position:relative;overflow:hidden"
+        onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'"
+        onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="position:absolute;top:10px;right:12px;font-size:22px;opacity:.15;font-weight:900;color:${c.rank}">#${i+1}</div>
+        <div style="font-size:20px;margin-bottom:6px">${m5icons[i]}</div>
+        <div style="font-size:13px;font-weight:800;color:${c.rank};margin-bottom:10px;line-height:1.3;padding-right:28px">${disp}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div style="background:${c.border};color:#fff;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700">${v.repeat} repeats</div>
+          <div style="background:#fff;border:1px solid ${c.border};color:${c.rank};border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700">${pct}% rate</div>
+        </div>
+        <div style="margin-top:10px;font-size:10px;color:${c.badge};font-weight:600">⬇ Click to download CSV</div>
+      </div>`;
+  }).join('') || '<div style="color:var(--muted);font-size:13px;padding:20px">No repeat disposition data found — ensure Tickets All is uploaded.</div>';
+
+}
+
+function downloadMonthlyRepeatCSV(disposition){
+  if(!G) return;
+  const rows = G.wa.filter(r =>
+    r.disposition === disposition &&
+    (r.weeklyRepeat || r.dailyRepeat || r.isRepeat)
+  );
+  if(!rows.length){ alert('No repeat tickets for: ' + disposition); return; }
+  const cols = ['ticketId','phone','agent','disposition','csat','resMin'];
+  let csv = cols.join(',') + '\n';
+  rows.forEach(r => { csv += cols.map(c => '"'+(r[c]??'')+'"').join(',') + '\n'; });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download = 'monthly_repeat_' + disposition.replace(/\s+/g,'_') + '.csv';
+  a.click();
+}
+
+const oldRenderTab = renderTab;
+
+
+renderTab = function(name){
+  oldRenderTab(name);
+
+  if(name==='monthly'){
+    renderMonthlyPerformance();
+  }
+};
+
+
+
+// ─── DISPOSITION EXPORT ─────────────────────────────────────────────
+function downloadDispositionTickets(disposition){
+
+  if(!G)return;
+
+  const rows = G.wa.filter(r=>r.disposition===disposition);
+
+  if(!rows.length)return;
+
+  const cols = [
+    'ticketId',
+    'phone',
+    'agent',
+    'disposition',
+    'csat',
+    'resMin'
+  ];
+
+  let csv = cols.join(',') + '\n';
+
+  rows.forEach(r=>{
+
+    csv += cols.map(c=>{
+      return '"' + (r[c] ?? '') + '"';
+    }).join(',') + '\n';
+
+  });
+
+  const blob = new Blob([csv], {type:'text/csv'});
+
+  const a = document.createElement('a');
+
+  a.href = URL.createObjectURL(blob);
+
+  a.download =
+    disposition.replace(/\s+/g,'_') + '_tickets.csv';
+
+  a.click();
+}
+
 </script>
 
 <div style="text-align:center;padding:18px 10px;color:#94a3b8;font-size:11px;font-weight:600;letter-spacing:.08em">
