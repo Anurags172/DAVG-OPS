@@ -1096,9 +1096,31 @@ to{transform:rotate(360deg)}
       <div style="position:relative;height:260px"><canvas id="c-agent-7day"></canvas></div>
     </div>
   </div>
-  <div class="card" class="mt-0"><h3>DSAT follow-up list (ratings 1-3)</h3>
+  <div class="card" class="mt-0">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <h3 style="margin:0">DSAT follow-up list (ratings 1-3)</h3>
+      <button onclick="downloadDsatCSV()" style="background:#fff1f2;border:1px solid #fca5a5;color:#dc2626;border-radius:8px;padding:6px 14px;font-size:11px;font-weight:700;cursor:pointer">⬇ Download Full DSAT CSV</button>
+    </div>
     <table class="table-standard"><thead><tr><th>Ticket</th><th>Agent</th><th>Customer</th><th>Rating</th><th>Comment</th><th>Disposition</th><th>Product</th></tr></thead>
     <tbody id="dsat-tbody"></tbody></table>
+  </div>
+
+  <!-- Disposition DSAT breakdown -->
+  <div class="card">
+    <h3>📦 DSAT by Disposition</h3>
+    <table class="table-standard">
+      <thead><tr><th>Disposition (L1)</th><th>L2 Disposition</th><th>No. of DSATs</th><th>DSAT %</th></tr></thead>
+      <tbody id="dsat-disp-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- Collapsible removal breakdown -->
+  <div class="card" style="margin-top:12px">
+    <div onclick="toggleRemovalPanel(this)" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none">
+      <h3 style="margin:0">🔍 Survey Cleaning Breakdown <span style="font-size:12px;font-weight:400;color:var(--muted)">— what was removed and why</span></h3>
+      <span class="toggle-arrow" style="font-size:14px;color:var(--muted)">▶</span>
+    </div>
+    <div id="csat-removal-wrap" style="display:none;margin-top:14px"></div>
   </div>
 </div>
 
@@ -1153,25 +1175,6 @@ to{transform:rotate(360deg)}
       </div>
       <div style="height:260px;margin-top:16px"><canvas id="c-monthly-disp-wow"></canvas></div>
     </div>
-  </div>
-
-  <!-- ── WAIT TIME TABLE ─────────────────────────────────────────────────── -->
-  <div class="card" style="margin-top:16px">
-    <h3>⏱ Average Wait Time — Day by Day</h3>
-    <p style="font-size:11px;color:var(--muted);margin:-4px 0 12px">Avg wait time vs incoming volume per day · 🔴 heaviest day · 🟢 lightest day</p>
-    <div style="overflow-x:auto">
-      <table class="table-standard">
-        <thead><tr><th>Date</th><th>Day</th><th>Incoming</th><th>Avg Wait (min)</th><th>Waited</th><th>Flag</th></tr></thead>
-        <tbody id="monthly-wait-body"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- ── TOP 5 REPEAT DRIVERS (30 days) ──────────────────────────────────── -->
-  <div style="margin-top:20px">
-    <h3 style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:4px">🚨 Top 5 Repeat Drivers — 30 Day View</h3>
-    <p style="font-size:12px;color:var(--muted);margin-bottom:12px">⚠️ Higher repeat = higher cost · Click any card to download repeat tickets CSV</p>
-    <div id="monthly-top5-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px"></div>
   </div>
 
 </div>
@@ -1326,7 +1329,7 @@ function buildData(aaRows, tktRows){
     const o=String(r['Order Name']||'');if(o&&o!=='-'&&o!=='nan')orderFreq[o]=(orderFreq[o]||0)+1;
   });
 
-  // Process AA rows
+  // Process AA rows — each row gets CSAT joined from Tickets All via ticket ID
   const processed=wa.map(r=>{
     const start=parseDT(r['Started At']),end=parseDT(r['Ended At']);
     const resMin=(start&&end)?(end-start)/60000:null;
@@ -1347,7 +1350,14 @@ function buildData(aaRows, tktRows){
 
     const disposition=bestTkt?String(bestTkt['Disposition: L2 Disposition']||'').trim():'';
     const product=bestTkt?String(bestTkt['Subcategory']||bestTkt['Disposition: Product Category']||'').trim():'';
-    const csatFromTkt=bestTkt?getCSAT(bestTkt):null;
+
+    // CSAT join: ticket exists in AA + has rating = count it. No bot filter. No dedup. 
+    // DSAT bot filter and dedup handled separately in CSAT tab rendering.
+    const rawCsat = bestTkt ? getCSAT(bestTkt) : null;
+
+    // Store ticket status for DSAT filtering later
+    const tktStatus = bestTkt ? String(bestTkt['Status']||'').toLowerCase().trim() : '';
+    const isAgentHandled = !tktStatus || !tktStatus.includes('resolved by ai');
 
     return{
       agent:String(r['Agent Name']||'').trim(),
@@ -1365,8 +1375,11 @@ function buildData(aaRows, tktRows){
       handoffReason:String(r['Handoff Reason']||''),
       waitMin,hasWait,
       disposition,product,
-      csat:csatFromTkt,
+      csat:rawCsat,
+      isAgentHandled,
       withinSLA:resMin!==null?resMin<=SLA_THRESHOLD:null,
+      resolvedAt: bestTkt ? parseDT(bestTkt['Resolved At']) : null,
+      csatSubmittedAt: bestTkt ? parseDT(String(bestTkt['CSAT Submitted At']||'').replace('T',' ').replace('Z','').split('.')[0]) : null,
     };
   });
 
@@ -1407,22 +1420,7 @@ function buildData(aaRows, tktRows){
   });
 
 
-  // Deduplicate DSATs — same customer phone on same day only counts once
-  // CSAT (4-5) kept as is, DSAT (1-3) deduplicated by phone+date
-  const dsatSeen=new Set();
-  const deduped=processed.map(r=>{
-    if(r.csat!==null&&r.csat<=3&&r.phone){
-      const dateStr=r.startDT?r.startDT.toDateString():'unknown';
-      const key=r.phone+'_'+dateStr;
-      if(dsatSeen.has(key)){
-        return{...r,csat:null}; // remove duplicate DSAT
-      }
-      dsatSeen.add(key);
-    }
-    return r;
-  });
-
-  return{wa:deduped,AGENTS,phoneFreq,orderFreq,numDays};
+  return{wa:processed,AGENTS,phoneFreq,orderFreq,numDays};
 }
 
 // ─── EFFICIENCY SCORE ─────────────────────────────────────────────────────────
@@ -1622,35 +1620,41 @@ document.getElementById('weekly-disp-body').innerHTML=
       {l:'SLA (≤12 min)',v:slaOk,s:resTimes.length?(slaOk/resTimes.length*100).toFixed(1)+'%':'',c:resTimes.length&&slaOk/resTimes.length>=.8?'green':'red'},
       {l:'Repeat Chats',v:rep,s:(total?(rep/total*100).toFixed(1)+'%':''),c:'red'},
       {l:'Avg 1st Resp',v:frT.length?fmt(avg(frT))+' min':'-',c:'teal'},
-      {l:'Avg CSAT',v:csatR.length?fmt(avg(csatR.map(r=>r.csat)))+'/5':'No data',c:csatR.length&&avg(csatR.map(r=>r.csat))>=4?'green':csatR.length?'amber':''},
       (()=>{
-        // Op CSAT (v4 engine) — DSAT dedup only, CSATs untouched, phone-only journey key
-        const sRows=wa.filter(r=>r.csat!==null&&!isNaN(r.csat));
-        // R1: drop late DSATs (>6h chat), CSATs always pass
-        const r1=sRows.filter(r=>!(Number(r.csat)<=3&&r.resMin&&Number(r.resMin)>360));
-        // R2: dedup DSATs per phone+disposition in 30d window, CSATs always pass
-        const r1s=r1.slice().sort((a,b)=>(a.startDT?a.startDT.getTime():0)-(b.startDT?b.startDT.getTime():0));
-        const dSeen={};
-        const r2=r1s.filter(r=>{
-          if(Number(r.csat)>=4)return true; // CSAT: never filtered
-          if(!r.phone||!r.startDT)return true;
-          const dk=r.phone+'__'+(r.disposition||'');
-          const ts=r.startDT.getTime();
-          if(dSeen[dk]!==undefined&&(ts-dSeen[dk])<=2592000000)return false;
-          dSeen[dk]=ts;return true;
+        // Avg CSAT: CSAT untouched, DSAT gets bot filter + no-disp + >6h + 30d dedup
+        const allR = wa.filter(r => r.csat !== null && !isNaN(r.csat));
+        if(!allR.length) return {l:'Avg CSAT',v:'No data',s:'',c:''};
+        const csatR = allR.filter(r => Number(r.csat) >= 4);
+        const dsatR = allR.filter(r => Number(r.csat) <= 3);
+        const d1 = dsatR.filter(r => r.isAgentHandled !== false);
+        const d2 = d1.filter(r => r.disposition && String(r.disposition).trim() !== '');
+        const d3 = d2.filter(r => {
+          if(r.csatSubmittedAt && r.resolvedAt) return (r.csatSubmittedAt - r.resolvedAt)/3600000 <= 6;
+          if(r.resMin) return Number(r.resMin) <= 360;
+          return true;
         });
-        // R3: one journey per phone (not phone+disposition to avoid blank-disp collisions)
-        const jMap={};
-        r2.forEach(r=>{const k=r.phone?String(r.phone):('x'+Math.random());if(!jMap[k])jMap[k]=[];jMap[k].push(r);});
-        const jFin=[];
-        Object.values(jMap).forEach(rows=>{
-          const cs=rows.filter(r=>Number(r.csat)>=4),ds=rows.filter(r=>Number(r.csat)<=3);
-          jFin.push(cs.length?cs[cs.length-1]:ds.length?ds[ds.length-1]:rows[rows.length-1]);
+        const ds = {};
+        const d4 = d3.slice().sort((a,b)=>(a.startDT?a.startDT.getTime():0)-(b.startDT?b.startDT.getTime():0)).filter(r=>{
+          if(!r.phone||!r.startDT) return true;
+          const disp = r.disposition&&r.disposition.trim()!==''?r.disposition.trim():null;
+          const key = r.phone+'__'+(disp||('tid_'+String(r.ticketId||r.phone)));
+          const ts = r.startDT.getTime();
+          if(ds[key]!==undefined&&(ts-ds[key])<=2592000000) return false;
+          ds[key]=ts; return true;
         });
-        const opC=jFin.length?(jFin.filter(r=>Number(r.csat)>=4).length/jFin.length*100):0;
-        return {l:'Op. CSAT',v:jFin.length?opC.toFixed(1)+'%':'No data',s:`${jFin.length} journeys · dedup DSATs removed`,c:opC>=88?'green':opC>=80?'amber':'red'};
+        const combined = [...csatR, ...d4];
+        const avgV = combined.length ? combined.reduce((a,r)=>a+Number(r.csat),0)/combined.length : 0;
+        const removed = dsatR.length - d4.length;
+        return {l:'Avg CSAT', v:combined.length?avgV.toFixed(1)+'/5':'No data',
+                s:`${csatR.length} CSAT · ${d4.length} DSAT · ${removed} removed`,
+                c:avgV>=4?'green':avgV>=3?'amber':'red'};
       })(),
-      {l:'🤖 AI Relief',v:'0%',s:'All contacts reached a human agent',c:'gold'},
+      (()=>{
+        const ar=computeAiRelief();
+        const pct=ar?ar.actualPct:0;
+        const sub=ar&&ar.totalDemand?`${ar.actualBotHandled} of ${ar.totalDemand} bot-closed`:'Upload Tickets All + AA';
+        return {l:'🤖 AI Relief',v:pct.toFixed(1)+'%',s:sub,c:pct>=15?'green':pct>=5?'amber':'gold'};
+      })(),
       {l:'Agents',v:AGENTS.length,s:AGENTS.map(a=>a.split(' ')[0]).join(', '),c:'purple'},
     ].map(k=>`<div class="kpi ${k.c}"><div class="lbl">${k.l}</div><div class="val">${k.v}</div><div class="sub">${k.s||''}</div></div>`).join('');
     const bE=[0,5,10,20,30,45,60,Infinity],bL=['0-5','6-10','11-20','21-30','31-45','46-60','60+'];
@@ -1663,7 +1667,20 @@ document.getElementById('weekly-disp-body').innerHTML=
 
   if(name==='resolution'){
     const m2=med(resTimes),p75=pct(resTimes,75),p90=pct(resTimes,90);
-    document.getElementById('rt-stats').innerHTML=[['Median',fmt(m2)],['75th',fmt(p75)],['90th',fmt(p90)],['Average',fmt(avg(resTimes))],['Min',fmt(Math.min(...resTimes))],['Max',fmt(Math.max(...resTimes))]].map(([l,v])=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13px"><span style="color:var(--muted)">${l}</span><strong>${v} min</strong></div>`).join('');
+    document.getElementById('rt-stats').innerHTML=[
+      ['Median',fmt(m2),''],
+      ['75th',fmt(p75),'⬇',`downloadPercentileCSV(75,${p75})`],
+      ['90th',fmt(p90),'⬇',`downloadPercentileCSV(90,${p90})`],
+      ['Average',fmt(avg(resTimes)),''],
+      ['Min',fmt(Math.min(...resTimes)),''],
+      ['Max',fmt(Math.max(...resTimes)),'']
+    ].map(([l,v,icon,fn])=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13px">
+      <span style="color:var(--muted)">${l}</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <strong>${v} min</strong>
+        ${fn?`<button onclick="${fn}" style="background:#eff6ff;border:1px solid #bfdbfe;color:#2563eb;border-radius:6px;padding:2px 8px;font-size:10px;cursor:pointer;font-weight:600">${icon} CSV</button>`:''}
+      </div>
+    </div>`).join('');
     const bE=[0,5,10,20,30,45,60,Infinity],bL=['0-5','6-10','11-20','21-30','31-45','46-60','60+'],bCols=['#16a34a','#16a34a','#ca8a04','#ca8a04','#dc2626','#dc2626','#991b1b'];
     const maxC=Math.max(...bL.map((_,i)=>resTimes.filter(v=>v>bE[i]&&v<=bE[i+1]).length));
     document.getElementById('rt-buckets').innerHTML=bL.map((l,i)=>{const cnt=resTimes.filter(v=>v>bE[i]&&v<=bE[i+1]).length;const w=maxC?cnt/maxC*100:0;return`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f5f7fa"><span style="width:60px;font-size:11px;color:var(--muted)">${l}</span><div style="background:#f1f5f9;border-radius:4px;height:8px;flex:1;overflow:hidden"><div style="height:100%;border-radius:4px;background:${bCols[i]};width:${w}%"></div></div><span style="font-size:11px;font-weight:700;width:26px;text-align:right">${cnt}</span><span style="font-size:10px;color:#94a3b8;width:36px;text-align:right">${total?(cnt/total*100).toFixed(1):0}%</span></div>`;}).join('');
@@ -2582,61 +2599,113 @@ document.getElementById('ai-survey-body').innerHTML = `
   }
 
   if(name==='csat'){
-    const csatRows=wa.filter(r=>r.csat!==null);
-    document.getElementById('csat-warn').style.display=csatRows.length?'none':'block';
-    if(!csatRows.length){document.getElementById('kpi-csat').innerHTML='';return;}
-    const csatGood=csatRows.filter(r=>r.csat>=4).length,csatBad=csatRows.filter(r=>r.csat<=3).length;
-    const avgScore=avg(csatRows.map(r=>r.csat));
+
+    // ── FULL CLEANING ENGINE ─────────────────────────────────────────────────
+    const allRated = wa.filter(r => r.csat !== null && !isNaN(r.csat));
+    document.getElementById('csat-warn').style.display = allRated.length ? 'none' : 'block';
+    if(!allRated.length){ document.getElementById('kpi-csat').innerHTML=''; return; }
+
+    const removed = { botDsat:[], noDisp:[], lateDsat:[], repeatDsat:[], recovered:[] };
+
+    // CSAT (4-5) — completely untouched
+    const cleanCsats = allRated.filter(r => Number(r.csat) >= 4);
+
+    // DSAT (1-3) — apply all rules
+    const allDsats = allRated.filter(r => Number(r.csat) <= 3);
+
+    // Rule 1: Resolved by Agent only — remove bot/AI DSATs
+    const dsat_agent = allDsats.filter(r => {
+      if(r.isAgentHandled === false){
+        removed.botDsat.push(r); return false;
+      }
+      return true;
+    });
+
+    // Rule 2: No disposition → drop
+    const dsat_disp = dsat_agent.filter(r => {
+      const hasDisp = r.disposition && String(r.disposition).trim() !== '';
+      if(!hasDisp){ removed.noDisp.push(r); return false; }
+      return true;
+    });
+
+    // Rule 3: Submitted >6h after Resolved At → drop
+    const dsat_time = dsat_disp.filter(r => {
+      let gapHours = null;
+      if(r.csatSubmittedAt && r.resolvedAt)
+        gapHours = (r.csatSubmittedAt - r.resolvedAt) / 3600000;
+      else if(r.resMin) gapHours = r.resMin / 60;
+      if(gapHours !== null && gapHours > 6){
+        removed.lateDsat.push({...r, _gapHours: gapHours}); return false;
+      }
+      return true;
+    });
+
+    // Rule 4: 30d dedup — same phone + same disposition, keep first
+    const dsat_sorted = dsat_time.slice().sort((a,b) =>
+      (a.startDT ? a.startDT.getTime() : 0) - (b.startDT ? b.startDT.getTime() : 0)
+    );
+    const dsatSeen = {};
+    const cleanDsats = dsat_sorted.filter(r => {
+      if(!r.phone || !r.startDT) return true;
+      const disp = r.disposition && r.disposition.trim() !== '' ? r.disposition.trim() : null;
+      const key = r.phone + '__' + (disp || ('tid_' + String(r.ticketId || r.phone)));
+      const ts = r.startDT.getTime();
+      const windowMs = 30 * 24 * 60 * 60 * 1000;
+      if(dsatSeen[key] !== undefined && (ts - dsatSeen[key]) <= windowMs){
+        removed.repeatDsat.push(r); return false;
+      }
+      dsatSeen[key] = ts; return true;
+    });
+
+    const finalRows = [...cleanCsats, ...cleanDsats];
+
+    // ── KPI CARDS ─────────────────────────────────────────────────────────────
+    const csatGood = finalRows.filter(r => Number(r.csat) >= 4).length;
+    const csatBad  = finalRows.filter(r => Number(r.csat) <= 3).length;
+    const avgScore = finalRows.length ? finalRows.reduce((a,r) => a + Number(r.csat), 0) / finalRows.length : 0;
+    const totalRemoved = removed.botDsat.length + removed.noDisp.length + removed.lateDsat.length + removed.repeatDsat.length;
+
     document.getElementById('kpi-csat').innerHTML=[
-      {l:'CSAT Rated',v:csatRows.length,s:'of '+total,c:''},
-      {l:'CSAT (4-5)',v:csatGood,s:(csatRows.length?csatGood/csatRows.length*100:0).toFixed(1)+'%',c:'green'},
-      {l:'DSAT (1-3)',v:csatBad,s:(csatRows.length?csatBad/csatRows.length*100:0).toFixed(1)+'%',c:'red'},
-      {l:'Avg Score',v:fmt(avgScore)+'/5',c:avgScore>=4?'green':avgScore>=3?'amber':'red'},
-      {l:'5 Star',v:csatRows.filter(r=>r.csat===5).length,c:'green'},
+      {l:'Surveyed',v:finalRows.length,s:`${allRated.length} raw · ${totalRemoved} cleaned`,c:''},
+      {l:'CSAT (4-5)',v:csatGood,s:(finalRows.length?csatGood/finalRows.length*100:0).toFixed(1)+'%',c:'green'},
+      {l:'DSAT (1-3)',v:csatBad,s:(finalRows.length?csatBad/finalRows.length*100:0).toFixed(1)+'%',c:'red'},
+      {l:'Avg Score',v:avgScore.toFixed(1)+'/5',c:avgScore>=4?'green':avgScore>=3?'amber':'red'},
+      {l:'5 Star',v:finalRows.filter(r=>Number(r.csat)===5).length,c:'green'},
     ].map(k=>`<div class="kpi ${k.c}"><div class="lbl">${k.l}</div><div class="val">${k.v}</div><div class="sub">${k.s||''}</div></div>`).join('');
-    // Only show ratings 4,5 as CSAT and 1,2,3 as DSAT — no duplicate combined view
-    destroyC('c-ratings');CH['c-ratings']=new Chart(document.getElementById('c-ratings'),{type:'bar',data:{labels:['5 Star','4 Star','3 Star','2 Star','1 Star'],datasets:[{data:[5,4,3,2,1].map(r=>csatRows.filter(c=>c.csat===r).length),backgroundColor:['#16a34a','#4ade80','#ca8a04','#f97316','#dc2626'],borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:11}}},y:{ticks:{font:{size:11}},beginAtZero:true}}}});
-    const agCSAT=AGENTS.map(a=>{const rows=wa.filter(r=>r.agent===a&&r.csat!==null);return{a:a.split(' ')[0],good:rows.filter(r=>r.csat>=4).length,bad:rows.filter(r=>r.csat<=3).length};});
-    destroyC('c-csat-agent');CH['c-csat-agent']=new Chart(document.getElementById('c-csat-agent'),{type:'bar',data:{labels:agCSAT.map(r=>r.a),datasets:[{label:'CSAT (4-5)',data:agCSAT.map(r=>r.good),backgroundColor:'#16a34a',borderRadius:4,stack:'s'},{label:'DSAT (1-3)',data:agCSAT.map(r=>r.bad),backgroundColor:'#dc2626',borderRadius:4,stack:'s'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12,padding:8}}},scales:{x:{ticks:{font:{size:11}},stacked:true},y:{ticks:{font:{size:11}},beginAtZero:true,stacked:true}}}});
-    document.getElementById('csat-agent-tbody').innerHTML=AGENTS.map(a=>{
-      const ar=wa.filter(r=>r.agent===a&&r.csat!==null);if(!ar.length)return`<tr><td><span class="dot" style="background:${agC(a)}"></span>${a}</td><td colspan="8" style="color:#ccc">No CSAT data</td></tr>`;
-      const good=ar.filter(r=>r.csat>=4).length,bad=ar.filter(r=>r.csat<=3).length,avgS=avg(ar.map(r=>r.csat));
-      const five=ar.filter(r=>r.csat===5).length;
-      const cP=ar.length?good/ar.length*100:0,dP=ar.length?bad/ar.length*100:0;
-      return`<tr><td><span class="dot" style="background:${agC(a)}"></span><strong>${a}</strong></td><td>${ar.length}</td><td style="color:#16a34a;font-weight:700">${good}</td><td><span class="badge bg">${cP.toFixed(1)}%</span></td><td style="color:#dc2626;font-weight:700">${bad}</td><td><span class="badge ${dP>30?'br':dP>15?'ba':'bg'}">${dP.toFixed(1)}%</span></td><td style="font-weight:700;color:${avgS>=4?'#16a34a':avgS>=3?'#d97706':'#dc2626'}">${fmt(avgS)}</td><td>${five}</td><td><span class="badge ${avgS>=4.5?'bg':avgS>=4?'bg':avgS>=3?'ba':'br'}">${avgS>=4?'Good':avgS>=3?'Average':'Poor'}</span></td></tr>`;
+
+    // ── CHARTS ────────────────────────────────────────────────────────────────
+    destroyC('c-ratings');
+    CH['c-ratings']=new Chart(document.getElementById('c-ratings'),{type:'bar',data:{labels:['5 Star','4 Star','3 Star','2 Star','1 Star'],datasets:[{data:[5,4,3,2,1].map(s=>finalRows.filter(r=>Number(r.csat)===s).length),backgroundColor:['#16a34a','#4ade80','#ca8a04','#f97316','#dc2626'],borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:11}}},y:{ticks:{font:{size:11}},beginAtZero:true}}}});
+
+    // Agent breakdown using cleaned finalRows
+    const agCSAT = AGENTS.map(a => {
+      const ar = finalRows.filter(r => r.agent === a);
+      return { a: a.split(' ')[0], good: ar.filter(r=>Number(r.csat)>=4).length, bad: ar.filter(r=>Number(r.csat)<=3).length };
+    });
+    destroyC('c-csat-agent');
+    CH['c-csat-agent']=new Chart(document.getElementById('c-csat-agent'),{type:'bar',data:{labels:agCSAT.map(r=>r.a),datasets:[{label:'CSAT (4-5)',data:agCSAT.map(r=>r.good),backgroundColor:'#16a34a',borderRadius:4,stack:'s'},{label:'DSAT (1-3)',data:agCSAT.map(r=>r.bad),backgroundColor:'#dc2626',borderRadius:4,stack:'s'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12,padding:8}}},scales:{x:{ticks:{font:{size:11}},stacked:true},y:{ticks:{font:{size:11}},beginAtZero:true,stacked:true}}}});
+
+    // ── AGENT TABLE (using cleaned rows) ─────────────────────────────────────
+    document.getElementById('csat-agent-tbody').innerHTML = AGENTS.map(a => {
+      const ar = finalRows.filter(r => r.agent === a);
+      if(!ar.length) return `<tr><td><span class="dot" style="background:${agC(a)}"></span>${a}</td><td colspan="8" style="color:#ccc">No CSAT data</td></tr>`;
+      const good=ar.filter(r=>Number(r.csat)>=4).length, bad=ar.filter(r=>Number(r.csat)<=3).length;
+      const avgS=ar.reduce((a,r)=>a+Number(r.csat),0)/ar.length;
+      const five=ar.filter(r=>Number(r.csat)===5).length;
+      const cP=ar.length?good/ar.length*100:0, dP=ar.length?bad/ar.length*100:0;
+      return `<tr><td><span class="dot" style="background:${agC(a)}"></span><strong>${a}</strong></td><td>${ar.length}</td><td style="color:#16a34a;font-weight:700">${good}</td><td><span class="badge bg">${cP.toFixed(1)}%</span></td><td style="color:#dc2626;font-weight:700">${bad}</td><td><span class="badge ${dP>30?'br':dP>15?'ba':'bg'}">${dP.toFixed(1)}%</span></td><td style="font-weight:700;color:${avgS>=4?'#16a34a':avgS>=3?'#d97706':'#dc2626'}">${avgS.toFixed(1)}</td><td>${five}</td><td><span class="badge ${avgS>=4.5?'bg':avgS>=4?'bg':avgS>=3?'ba':'br'}">${avgS>=4?'Good':avgS>=3?'Average':'Poor'}</span></td></tr>`;
     }).join('');
 
-    // ── 7-DAY CSAT TREND ─────────────────────────────────────────────────────
+    // ── 7-DAY TREND (using cleaned rows) ────────────────────────────────────
     try{
-    // Use CSAT Submitted At from tktRows for accurate date
     const csatByDay={};
-    if(tktRows){
-      tktRows.forEach(r=>{
-        const rating=parseFloat(r['CSAT Rating']);
-        if(!rating||isNaN(rating)||rating<1||rating>5) return;
-        const dateStr=r['CSAT Submitted At']||r['Created At']||'';
-        if(!dateStr) return;
-        let d=null;
-        try{d=new Date(dateStr);}catch(e){return;}
-        if(!d||isNaN(d)) return;
-        const key=d.toISOString().slice(0,10); // YYYY-MM-DD
-        if(!csatByDay[key])csatByDay[key]={good:0,bad:0,total:0};
-        csatByDay[key].total++;
-        if(rating>=4)csatByDay[key].good++;
-        else csatByDay[key].bad++;
-      });
-    }
-    // Also pull from wa rows as fallback
-    if(!Object.keys(csatByDay).length){
-      wa.filter(r=>r.csat!==null).forEach(r=>{
-        const d=r.startDT;if(!d)return;
-        const key=d.toISOString().slice(0,10);
-        if(!csatByDay[key])csatByDay[key]={good:0,bad:0,total:0};
-        csatByDay[key].total++;
-        if(r.csat>=4)csatByDay[key].good++;
-        else csatByDay[key].bad++;
-      });
-    }
+    finalRows.filter(r=>r.startDT).forEach(r=>{
+      const key=r.startDT.toISOString().slice(0,10);
+      if(!csatByDay[key])csatByDay[key]={good:0,bad:0,total:0};
+      csatByDay[key].total++;
+      if(Number(r.csat)>=4)csatByDay[key].good++;
+      else csatByDay[key].bad++;
+    });
     const cdays=Object.keys(csatByDay).sort();
     const c7warn=document.getElementById('csat-7day-warn');
     const c7wrap=document.getElementById('csat-7day-wrap');
@@ -2644,39 +2713,130 @@ document.getElementById('ai-survey-body').innerHTML = `
     else{
       c7warn.style.display='none';c7wrap.style.display='block';
       destroyC('c-csat-7day');
-      const _el7day=document.getElementById('c-csat-7day');
-      if(!_el7day){return;}
-      CH['c-csat-7day']=new Chart(_el7day,{
-        type:'line',
-        data:{
-          labels:cdays.map(d=>{const dt=new Date(d);return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});}),
-          datasets:[
-            {label:'CSAT (4-5)',data:cdays.map(d=>csatByDay[d].good),borderColor:'#16a34a',backgroundColor:'rgba(22,163,74,.1)',fill:true,tension:.3,pointRadius:5,pointBackgroundColor:'#16a34a'},
-            {label:'DSAT (1-3)',data:cdays.map(d=>csatByDay[d].bad),borderColor:'#dc2626',backgroundColor:'rgba(220,38,38,.1)',fill:true,tension:.3,pointRadius:5,pointBackgroundColor:'#dc2626'},
-            {label:'CSAT %',data:cdays.map(d=>csatByDay[d].total?(csatByDay[d].good/csatByDay[d].total*100).toFixed(1):0),borderColor:'#3b82f6',backgroundColor:'transparent',tension:.3,pointRadius:3,borderDash:[5,5],yAxisID:'y1'}
-          ]
-        },
-        options:{
-          responsive:true,maintainAspectRatio:false,
-          plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12,padding:8}}},
-          scales:{
-            x:{ticks:{font:{size:10}}},
-            y:{ticks:{font:{size:11}},beginAtZero:true,title:{display:true,text:'Count',font:{size:10}}},
-            y1:{ticks:{font:{size:10},callback:v=>v+'%'},beginAtZero:true,max:100,position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'CSAT %',font:{size:10}}}
-          }
-        }
-      });
+      CH['c-csat-7day']=new Chart(document.getElementById('c-csat-7day'),{type:'line',data:{labels:cdays.map(d=>{const dt=new Date(d);return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});}),datasets:[{label:'CSAT (4-5)',data:cdays.map(d=>csatByDay[d].good),borderColor:'#16a34a',backgroundColor:'rgba(22,163,74,.1)',fill:true,tension:.3,pointRadius:5,pointBackgroundColor:'#16a34a'},{label:'DSAT (1-3)',data:cdays.map(d=>csatByDay[d].bad),borderColor:'#dc2626',backgroundColor:'rgba(220,38,38,.1)',fill:true,tension:.3,pointRadius:5,pointBackgroundColor:'#dc2626'},{label:'Avg Score',data:cdays.map(d=>{const rows=finalRows.filter(r=>r.startDT&&r.startDT.toISOString().slice(0,10)===d);return rows.length?(rows.reduce((a,r)=>a+Number(r.csat),0)/rows.length).toFixed(2):0;}),borderColor:'#3b82f6',backgroundColor:'transparent',tension:.3,pointRadius:3,borderDash:[5,5],yAxisID:'y1'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12,padding:8}}},scales:{x:{ticks:{font:{size:10}}},y:{ticks:{font:{size:11}},beginAtZero:true,title:{display:true,text:'Count',font:{size:10}}},y1:{ticks:{font:{size:10},callback:v=>v+'/5'},min:1,max:5,position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'Avg Score',font:{size:10}}}}}});
     }
 
-    // ── AGENT DAILY CSAT BREAKDOWN ─────────────────────────────────────────
+    // ── AGENT DAILY BREAKDOWN ────────────────────────────────────────────────
     const agentByDay={};
-    wa.filter(r=>r.csat!==null&&r.startDT).forEach(r=>{
+    finalRows.filter(r=>r.startDT).forEach(r=>{
       const key=r.startDT.toISOString().slice(0,10);
       if(!agentByDay[r.agent])agentByDay[r.agent]={};
       if(!agentByDay[r.agent][key])agentByDay[r.agent][key]={good:0,bad:0};
-      if(r.csat>=4)agentByDay[r.agent][key].good++;
+      if(Number(r.csat)>=4)agentByDay[r.agent][key].good++;
       else agentByDay[r.agent][key].bad++;
     });
+    const agDays=[...new Set(finalRows.filter(r=>r.startDT).map(r=>r.startDT.toISOString().slice(0,10)))].sort();
+    const a7warn=document.getElementById('agent-7day-warn');
+    const a7wrap=document.getElementById('agent-7day-wrap');
+    if(agDays.length<2){a7warn.style.display='block';a7wrap.style.display='none';}
+    else{
+      a7warn.style.display='none';a7wrap.style.display='block';
+      destroyC('c-agent-7day');
+      const palette=['#3b82f6','#dc2626','#f59e0b','#10b981','#8b5cf6','#ec4899','#06b6d4','#84cc16'];
+      CH['c-agent-7day']=new Chart(document.getElementById('c-agent-7day'),{type:'bar',data:{labels:agDays.map(d=>{const dt=new Date(d);return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});}),datasets:AGENTS.map((a,i)=>({label:a.split(' ')[0],data:agDays.map(d=>(agentByDay[a]&&agentByDay[a][d])?agentByDay[a][d].good:0),backgroundColor:palette[i%palette.length],borderRadius:3,stack:'s'}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10,padding:6}}},scales:{x:{stacked:true,ticks:{font:{size:10}}},y:{stacked:true,beginAtZero:true,ticks:{font:{size:11}}}}}});
+    }
+    }catch(e){console.error('CSAT chart error:',e);}
+
+    // ── DSAT FOLLOW-UP LIST (cleaned DSATs only) ─────────────────────────────
+    const dsatFollowUp = finalRows.filter(r => Number(r.csat) <= 3).sort((a,b) => Number(a.csat)-Number(b.csat));
+    document.getElementById('dsat-tbody').innerHTML = dsatFollowUp.slice(0,50).map(r => {
+      const tkt = tktRows ? tktRows.find(t => String(t['Ticket Number']).replace('#','').trim() === String(r.ticketId).replace('#','').trim()) : null;
+      const comment = tkt ? (tkt['CSAT Comment'] || '-') : '-';
+      return `<tr><td>${r.ticketId}</td><td>${r.agent}</td><td>${r.customer||'-'}</td><td><span class="badge ${Number(r.csat)<=2?'br':'ba'}">${r.csat} Star</span></td><td style="font-size:10px;color:var(--muted)">${comment}</td><td style="font-size:10px;color:var(--muted)">${r.disposition||'-'}</td><td style="font-size:10px;color:var(--muted)">${r.product||'-'}</td></tr>`;
+    }).join('') || '<tr><td colspan="7" style="color:#94a3b8">No DSATs after applying cleaning rules</td></tr>';
+
+    // ── DISPOSITION DSAT TABLE ─────────────────────────────────────────────
+    // Group cleanDsats by L1 disposition (product) + L2 disposition
+    const dispDsatMap = {};
+    cleanDsats.forEach(r => {
+      const l1 = r.product && r.product.trim() !== '' ? r.product.trim() : 'Untagged';
+      const l2 = r.disposition && r.disposition.trim() !== '' ? r.disposition.trim() : 'No Disposition';
+      const key = l1 + '__' + l2;
+      if(!dispDsatMap[key]) dispDsatMap[key] = { l1, l2, count: 0 };
+      dispDsatMap[key].count++;
+    });
+    const totalDsatCount = cleanDsats.length || 1;
+    const dispSorted = Object.values(dispDsatMap).sort((a,b) => b.count - a.count);
+    document.getElementById('dsat-disp-tbody').innerHTML = dispSorted.length
+      ? dispSorted.map(d => {
+          const pct = (d.count / totalDsatCount * 100).toFixed(1);
+          const barW = Math.round(d.count / dispSorted[0].count * 100);
+          return `<tr>
+            <td style="font-weight:600">${d.l1}</td>
+            <td style="color:var(--muted);font-size:11px">${d.l2}</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-weight:700;color:#dc2626;min-width:24px">${d.count}</span>
+                <div style="flex:1;background:#fee2e2;border-radius:4px;height:8px">
+                  <div style="width:${barW}%;background:#dc2626;border-radius:4px;height:8px"></div>
+                </div>
+              </div>
+            </td>
+            <td><span class="badge ${parseFloat(pct)>30?'br':parseFloat(pct)>15?'ba':'bg'}">${pct}%</span></td>
+          </tr>`;
+        }).join('')
+      : '<tr><td colspan="4" style="color:#94a3b8">No DSATs after cleaning</td></tr>';
+
+    // ── REMOVAL BREAKDOWN (collapsible) ─────────────────────────────────────
+    document.getElementById('csat-removal-wrap').innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px">
+        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:11px;color:#166534;font-weight:700">RAW SURVEYS</div>
+          <div style="font-size:24px;font-weight:900;color:#166534">${allRated.length}</div>
+          <div style="font-size:10px;color:#4ade80">All rated rows from AA+TKT join</div>
+        </div>
+        <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:11px;color:#991b1b;font-weight:700">BOT DSAT</div>
+          <div style="font-size:24px;font-weight:900;color:#991b1b">${removed.botDsat.length}</div>
+          <div style="font-size:10px;color:#f87171">Resolved by AI, not agent</div>
+        </div>
+        <div style="background:#fff1f2;border:1px solid #fca5a5;border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:11px;color:#991b1b;font-weight:700">NO DISPOSITION</div>
+          <div style="font-size:24px;font-weight:900;color:#991b1b">${removed.noDisp.length}</div>
+          <div style="font-size:10px;color:#f87171">DSAT with blank disposition</div>
+        </div>
+        <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:11px;color:#92400e;font-weight:700">LATE DSAT &gt;6H</div>
+          <div style="font-size:24px;font-weight:900;color:#92400e">${removed.lateDsat.length}</div>
+          <div style="font-size:10px;color:#fb923c">Submitted after 6h of closure</div>
+        </div>
+        <div style="background:#faf5ff;border:1px solid #d8b4fe;border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:11px;color:#6b21a8;font-weight:700">REPEAT DSAT</div>
+          <div style="font-size:24px;font-weight:900;color:#6b21a8">${removed.repeatDsat.length}</div>
+          <div style="font-size:10px;color:#c084fc">Same issue within 30 days</div>
+        </div>
+        <div style="background:#f8fafc;border:2px solid #3b82f6;border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:11px;color:#1d4ed8;font-weight:700">FINAL COUNT</div>
+          <div style="font-size:24px;font-weight:900;color:#1d4ed8">${finalRows.length}</div>
+          <div style="font-size:10px;color:#3b82f6">${cleanCsats.length} CSAT + ${cleanDsats.length} DSAT</div>
+        </div>
+      </div>
+      ${removed.lateDsat.length ? `
+      <div style="margin-top:8px">
+        <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:6px">⏰ Late DSATs removed (>6h after closure):</div>
+        <table class="table-standard"><thead><tr><th>Ticket</th><th>Agent</th><th>Rating</th><th>Resolved At</th><th>Submitted At</th><th>Gap (hours)</th></tr></thead>
+        <tbody>${removed.lateDsat.map(r=>`<tr>
+          <td>${r.ticketId}</td>
+          <td>${r.agent}</td>
+          <td><span class="badge br">${r.csat} Star</span></td>
+          <td style="font-size:10px">${r.resolvedAt?r.resolvedAt.toLocaleString():'-'}</td>
+          <td style="font-size:10px">${r.csatSubmittedAt?r.csatSubmittedAt.toLocaleString():'-'}</td>
+          <td style="color:#dc2626;font-weight:700">${r._gapHours?r._gapHours.toFixed(1)+'h':'-'}</td>
+        </tr>`).join('')}</tbody></table>
+      </div>` : ''}
+      ${removed.repeatDsat.length ? `
+      <div style="margin-top:12px">
+        <div style="font-size:12px;font-weight:700;color:#6b21a8;margin-bottom:6px">🔁 Repeat DSATs removed (same issue within 30 days):</div>
+        <table class="table-standard"><thead><tr><th>Ticket</th><th>Agent</th><th>Phone</th><th>Disposition</th><th>Rating</th></tr></thead>
+        <tbody>${removed.repeatDsat.map(r=>`<tr>
+          <td>${r.ticketId}</td><td>${r.agent}</td>
+          <td>${r.phone?r.phone.slice(-4).padStart(10,'*'):'-'}</td>
+          <td style="font-size:10px">${r.disposition||'-'}</td>
+          <td><span class="badge br">${r.csat} Star</span></td>
+        </tr>`).join('')}</tbody></table>
+      </div>` : ''}
+    `;
+  }
     const agDays=[...new Set(wa.filter(r=>r.csat!==null&&r.startDT).map(r=>r.startDT.toISOString().slice(0,10)))].sort();
     const a7warn=document.getElementById('agent-7day-warn');
     const a7wrap=document.getElementById('agent-7day-wrap');
@@ -2704,9 +2864,6 @@ document.getElementById('ai-survey-body').innerHTML = `
       });
     }
 
-    }catch(e){console.warn('7-day chart error:',e);}
-    document.getElementById('dsat-tbody').innerHTML=wa.filter(r=>r.csat!==null&&r.csat<=3).sort((a,b)=>a.csat-b.csat).slice(0,50).map(r=>`<tr><td>${r.ticketId}</td><td>${r.agent}</td><td>${r.customer||'-'}</td><td><span class="badge ${r.csat<=2?'br':'ba'}">${r.csat} Star</span></td><td style="font-size:10px;color:var(--muted)">-</td><td style="font-size:10px;color:var(--muted)">${r.disposition||'-'}</td><td style="font-size:10px;color:var(--muted)">${r.product||'-'}</td></tr>`).join('');
-  }
 
   if(name==='roster'){
     const dowNames={0:'Sunday',1:'Monday',2:'Tuesday',3:'Wednesday',4:'Thursday',5:'Friday',6:'Saturday'};
@@ -2714,12 +2871,15 @@ document.getElementById('ai-survey-body').innerHTML = `
     const sd=Object.entries(dayV).sort((a,b)=>a[1]-b[1]);
     const lightDay=sd.length?sd[0][0]:'Sunday';
     const lightDow=Object.entries(dowNames).find(([,v])=>v===lightDay)?.[0]||0;
-    const peakH=hours[vols.indexOf(Math.max(...vols))];
-    const peakVol=Math.max(...vols);
-    const agentsNeeded=Math.ceil(peakVol/12.75);
+
+    // Use DAILY AVERAGE volume — divide by numDays so weekly/monthly data isn't inflated
+    const dailyVols = hours.map(h => vols[h-8] / Math.max(1, numDays));
+    const peakDailyVol = Math.max(...dailyVols);
+    const peakH = hours[dailyVols.indexOf(peakDailyVol)];
+    const agentsNeeded = Math.ceil(peakDailyVol / 12.75); // 12.75 chats/agent/hour
     document.getElementById('kpi-roster').innerHTML=[
-      {l:'Peak Hour',v:String(peakH).padStart(2,'0')+':00',s:peakVol+' chats',c:'red'},
-      {l:'Agents at Peak',v:agentsNeeded,s:'recommended min',c:agentsNeeded>AGENTS.length?'red':'blue'},
+      {l:'Peak Hour',v:String(peakH).padStart(2,'0')+':00',s:Math.round(peakDailyVol)+' chats/day avg',c:'red'},
+      {l:'Agents at Peak',v:agentsNeeded,s:'recommended min'+(numDays>1?' (daily avg)':''),c:agentsNeeded>AGENTS.length?'red':'blue'},
       {l:'Lightest Day',v:lightDay,s:'best for week off',c:'green'},
       {l:'Active Agents',v:AGENTS.length,s:AGENTS.map(a=>a.split(' ')[0]).join(', '),c:'purple'},
     ].map(k=>`<div class="kpi ${k.c}"><div class="lbl">${k.l}</div><div class="val">${k.v}</div><div class="sub">${k.s}</div></div>`).join('');
@@ -2759,7 +2919,7 @@ document.getElementById('ai-survey-body').innerHTML = `
     const shiftGroups=[...new Set(Object.values(shiftAssign).map(s=>s.label))];
     covTbody.innerHTML=[...shiftGroups,'Total'].map(sh=>`<tr><td><strong>${sh==='Total'?'Total':sh+':00'}</strong></td>${days.map((_,di)=>{const dow=di===6?0:di+1;let cnt=0;scores2.forEach((s,rank)=>{const offDow=rank<3?parseInt(lightDow):(rank<5?(parseInt(lightDow)+1)%7:(parseInt(lightDow)+2)%7);if(dow!==offDow){const agSh=shiftAssign[s.a]||SHIFT_TIMES[0];if(sh==='Total'||agSh.label===sh)cnt++;}});const need=sh==='Total'?7:2;return`<td style="text-align:center;font-weight:700;color:${cnt>=need?'#16a34a':cnt===need-1?'#d97706':'#dc2626'}">${cnt}</td>`;}).join('')}</tr>`).join('');
 
-    document.getElementById('peak-check').innerHTML=hours.filter(h=>vols[h-8]>0).sort((a,b)=>vols[b-8]-vols[a-8]).slice(0,5).map(h=>{const vol=vols[h-8],need=Math.ceil(vol/12.75),have=AGENTS.filter(a=>{const sh=shiftAssign[a]||SHIFT_TIMES[0];return h>=sh.start&&h<sh.end;}).length;const ok=have>=need;return`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f1f5f9"><span style="font-weight:700;min-width:48px;font-size:12px">${String(h).padStart(2,'0')}:00</span><div style="background:#f1f5f9;border-radius:3px;height:7px;flex:1;overflow:hidden"><div style="height:100%;border-radius:3px;background:${ok?'#3b82f6':'#dc2626'};width:${vol/Math.max(1,...hours.map(hh=>vols[hh-8]))*100}%"></div></div><span style="font-weight:700;font-size:12px;min-width:22px">${vol}</span><span style="font-size:11px;min-width:110px;color:${ok?'#16a34a':'#dc2626'}">${need} need / ${have} on shift</span><span class="badge ${ok?'bg':'br'}">${ok?'OK':'Under'}</span></div>`;}).join('');
+    document.getElementById('peak-check').innerHTML=hours.filter(h=>dailyVols[h-8]>0).sort((a,b)=>dailyVols[b-8]-dailyVols[a-8]).slice(0,5).map(h=>{const vol=Math.round(dailyVols[h-8]),need=Math.ceil(dailyVols[h-8]/12.75),have=AGENTS.filter(a=>{const sh=shiftAssign[a]||SHIFT_TIMES[0];return h>=sh.start&&h<sh.end;}).length;const ok=have>=need;return`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f1f5f9"><span style="font-weight:700;min-width:48px;font-size:12px">${String(h).padStart(2,'0')}:00</span><div style="background:#f1f5f9;border-radius:3px;height:7px;flex:1;overflow:hidden"><div style="height:100%;border-radius:3px;background:${ok?'#3b82f6':'#dc2626'};width:${vol/Math.max(1,...hours.map(hh=>Math.round(dailyVols[hh-8])))*100}%"></div></div><span style="font-weight:700;font-size:12px;min-width:22px">${vol}</span><span style="font-size:11px;min-width:110px;color:${ok?'#16a34a':'#dc2626'}">${need} need / ${have} on shift</span><span class="badge ${ok?'bg':'br'}">${ok?'OK':'Under'}</span></div>`;}).join('');
 
     destroyC('c-heatmap');CH['c-heatmap']=new Chart(document.getElementById('c-heatmap'),{type:'bar',data:{labels:hours.map(h=>h+':00'),datasets:AGENTS.map(a=>({label:a.split(' ')[0],data:hours.map(h=>wa.filter(r=>r.hour===h&&r.agent===a).length),backgroundColor:agC(a),borderRadius:2,stack:'s'}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10,padding:6}}},scales:{x:{ticks:{font:{size:10},autoSkip:false},stacked:true},y:{ticks:{font:{size:11}},beginAtZero:true,stacked:true}}}});
   }
@@ -2984,9 +3144,162 @@ function downloadRepeatDispositionCSV(disposition){
 
 // ─── FILE UPLOAD ──────────────────────────────────────────────────────────────
 function readFile(file,cb){
-  const reader=new FileReader();
-  reader.onload=ev=>{try{const wb=XLSX.read(ev.target.result,{type:'array',cellDates:true,raw:false});cb(null,XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''}));}catch(e){cb(e);}};
-  reader.readAsArrayBuffer(file);
+  const isCSV = file.name.toLowerCase().endsWith('.csv');
+  if(isCSV){
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      try{
+        const text=ev.target.result.replace(/^\uFEFF/,''); // strip BOM
+        const rows=parseCSVText(text);
+        if(rows.length<2){cb(new Error('File appears empty'));return;}
+        const headers=rows[0];
+        const result=[];
+        for(let i=1;i<rows.length;i++){
+          if(rows[i].every(v=>v===''||v===undefined))continue; // skip blank rows
+          const row={};
+          headers.forEach((h,j)=>{row[h]=rows[i][j]!==undefined?rows[i][j]:'';});
+          result.push(row);
+        }
+        cb(null,result);
+      }catch(e){cb(e);}
+    };
+    reader.onerror=e=>cb(new Error('File read failed: '+e));
+    reader.readAsText(file,'UTF-8');
+  } else {
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      try{
+        const wb=XLSX.read(ev.target.result,{type:'array',cellDates:true,raw:false});
+        cb(null,XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''}));
+      }catch(e){cb(e);}
+    };
+    reader.onerror=e=>cb(new Error('File read failed: '+e));
+    reader.readAsArrayBuffer(file);
+  }
+}
+
+// Full RFC-4180 CSV parser — handles quoted fields with embedded newlines and commas
+function parseCSVText(text){
+  const rows=[];
+  let cur=[];
+  let field='';
+  let inQuote=false;
+  let i=0;
+  while(i<text.length){
+    const ch=text[i];
+    if(inQuote){
+      if(ch==='"'){
+        if(text[i+1]==='"'){field+='"';i+=2;continue;} // escaped quote
+        inQuote=false;i++;continue;
+      }
+      field+=ch;i++;
+    } else {
+      if(ch==='"'){inQuote=true;i++;continue;}
+      if(ch===','){cur.push(field.trim());field='';i++;continue;}
+      if(ch==='\r'&&text[i+1]==='\n'){cur.push(field.trim());rows.push(cur);cur=[];field='';i+=2;continue;}
+      if(ch==='\n'||ch==='\r'){cur.push(field.trim());rows.push(cur);cur=[];field='';i++;continue;}
+      field+=ch;i++;
+    }
+  }
+  if(field||cur.length){cur.push(field.trim());rows.push(cur);}
+  return rows;
+}
+
+function parseCSVLine(line){
+  const result=[];
+  let cur='',inQuote=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(ch==='"'){if(inQuote&&line[i+1]==='"'){cur+='"';i++;}else{inQuote=!inQuote;}}
+    else if(ch===','&&!inQuote){result.push(cur.trim());cur='';}
+    else{cur+=ch;}
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+
+// ── GLOBAL AI RELIEF CALCULATOR ─────────────────────────────────────────────
+function computeAiRelief(){
+  if(!tktRows||!tktRows.length)return null;
+  function _cp(v){if(!v)return'';let s=String(v).replace(/[^0-9]/g,'');if(s.length>10)s=s.slice(-10);return s;}
+  const totalDemand=tktRows.length;
+  const aiRows=tktRows.filter(r=>String(r['Status']||'').toLowerCase().includes('resolved by ai'));
+  if(!aiRows.length)return{actualPct:0,botHandled:0,totalDemand,actualBotHandled:0};
+  const agentPhones=new Set();
+  if(aaRows)aaRows.forEach(r=>{const p=_cp(r['Customer Phone']||r['Phone']||'');if(p)agentPhones.add(p);});
+  let botHandled=0;
+  const repeatMap={};
+  aiRows.forEach(r=>{
+    const phone=_cp(r['Customer Phone']||r['Phone']||'');
+    const task=String(r['Task Names']||r['Task Name']||r['Task']||'General');
+    if(!phone||!agentPhones.has(phone))botHandled++;
+    const rk=task+'__'+phone;
+    repeatMap[rk]=(repeatMap[rk]||0)+1;
+  });
+  let repeat=0;
+  Object.values(repeatMap).forEach(c=>{if(c>1)repeat+=(c-1);});
+  const actualBotHandled=Math.max(0,botHandled-repeat);
+  const actualPct=totalDemand?parseFloat((actualBotHandled/totalDemand*100).toFixed(1)):0;
+  window._aiReliefPct=actualPct;
+  return{actualPct,botHandled,actualBotHandled,totalDemand,repeat};
+}
+
+function downloadPercentileCSV(pctLabel, threshold){
+  if(!G) return;
+  const rows = G.wa.filter(r => r.resMin !== null && r.resMin > threshold);
+  if(!rows.length){ alert(`No chats above ${pctLabel}th percentile (>${threshold} min)`); return; }
+  const cols = ['ticketId','agent','phone','resMin','disposition','status'];
+  let csv = cols.join(',') + '\n';
+  rows.sort((a,b) => b.resMin - a.resMin).forEach(r => {
+    csv += cols.map(c => '"' + (r[c] ?? '') + '"').join(',') + '\n';
+  });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+  a.download = `resolution_above_${pctLabel}th_pct_${threshold}min.csv`;
+  a.click();
+}
+
+function downloadDsatCSV(){
+  if(!G) return;
+  const wa = G.wa;
+  // Apply same cleaning as CSAT tab: CSAT untouched, DSAT with all rules
+  const allRated = wa.filter(r => r.csat !== null && !isNaN(r.csat));
+  const dsatR = allRated.filter(r => Number(r.csat) <= 3);
+  const d1 = dsatR.filter(r => r.isAgentHandled !== false);
+  const d2 = d1.filter(r => r.disposition && String(r.disposition).trim() !== '');
+  const d3 = d2.filter(r => {
+    if(r.csatSubmittedAt && r.resolvedAt) return (r.csatSubmittedAt - r.resolvedAt)/3600000 <= 6;
+    if(r.resMin) return Number(r.resMin) <= 360;
+    return true;
+  });
+  const ds = {};
+  const cleanDsats = d3.slice().sort((a,b)=>(a.startDT?a.startDT.getTime():0)-(b.startDT?b.startDT.getTime():0)).filter(r=>{
+    if(!r.phone||!r.startDT) return true;
+    const disp = r.disposition&&r.disposition.trim()!==''?r.disposition.trim():null;
+    const key = r.phone+'__'+(disp||('tid_'+String(r.ticketId||r.phone)));
+    const ts = r.startDT.getTime();
+    if(ds[key]!==undefined&&(ts-ds[key])<=2592000000) return false;
+    ds[key]=ts; return true;
+  });
+  if(!cleanDsats.length){ alert('No DSATs after cleaning rules'); return; }
+  const cols = ['ticketId','agent','phone','csat','disposition','product','customer'];
+  let csv = cols.join(',') + '\n';
+  cleanDsats.forEach(r => {
+    csv += cols.map(c => '"' + (r[c] ?? '') + '"').join(',') + '\n';
+  });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+  a.download = 'dsat_cleaned.csv';
+  a.click();
+}
+
+function toggleRemovalPanel(el){
+  const panel = el.nextElementSibling;
+  const arrow = el.querySelector('.toggle-arrow');
+  const isHidden = panel.style.display === 'none' || panel.style.display === '';
+  panel.style.display = isHidden ? 'block' : 'none';
+  if(arrow) arrow.textContent = isHidden ? '▼' : '▶';
 }
 
 function tryBuild(){
@@ -3003,10 +3316,11 @@ document.getElementById('f-aa').addEventListener('change',function(e){
   const file=e.target.files[0];if(!file)return;
   document.getElementById('aa-st').textContent='Loading...';
   readFile(file,(err,rows)=>{
-    if(err){document.getElementById('aa-st').textContent='Error!';return;}
+    if(err){document.getElementById('aa-st').textContent='Error: '+err.message;console.error('AA parse error:',err);return;}
     aaRows=rows;
     document.getElementById('aa-st').textContent=rows.length+' rows';
     document.getElementById('lbl-aa').classList.add('loaded');
+    this.value=''; // allow re-uploading same file
     tryBuild();
   });
 });
@@ -3015,10 +3329,11 @@ document.getElementById('f-tkt').addEventListener('change',function(e){
   const file=e.target.files[0];if(!file)return;
   document.getElementById('tkt-st').textContent='Loading...';
   readFile(file,(err,rows)=>{
-    if(err){document.getElementById('tkt-st').textContent='Error!';return;}
+    if(err){document.getElementById('tkt-st').textContent='Error: '+err.message;console.error('TKT parse error:',err);return;}
     tktRows=rows;
     document.getElementById('tkt-st').textContent=rows.length+' rows';
     document.getElementById('lbl-tkt').classList.add('loaded');
+    this.value=''; // allow re-uploading same file
     tryBuild();
   });
 });
@@ -3119,102 +3434,77 @@ function renderMonthlyPerformance(){
   });
 
   const avgRepeat = avg(dailyRepeat)||0;
-  const avgFcr = avg(dailyFcr)||0;
-  const avgCsat = avg(dailyCsat)||0;
+  const avgFcr    = avg(dailyFcr)||0;
+  const avgRT     = avg(dailyRT)||0;
+
+  // Raw CSAT: same PRE-filter as Op CSAT (drop no-disp DSATs) so both are on same base
+  // CSAT rows with no disposition still count (no-disp CSAT = genuine satisfaction)
+
+
+
   
-  const avgRT = avg(dailyRT)||0;
-
-  
 
 
 
 
-// ── OPERATIONAL CSAT ENGINE (v4) ───────────────────────────────────────────
-// What is filtered (DSAT only — CSATs are NEVER touched):
-//  R1. DSAT (rating 1-3) where resMin > 360min (chat lasted >6h — proxy for stale/abandoned)
-//      → dropped. CSATs at any resolution time: always kept.
-//  R2. Same phone + same disposition, DSAT within 30-day window → only first counts.
-//      Different disposition = different issue = fresh DSAT always counted.
-//      CSATs: pass through unconditionally, no dedup, no time filter.
-//  R3. Journey = per phone. If customer has ANY CSAT → outcome = CSAT (recovery wins).
-//      Phone key only (not phone+disposition) to avoid collapsing unrelated customers
-//      who share a blank disposition into the same journey.
-// Net effect: Operational CSAT ≥ raw CSAT% always, since we only remove bad signals.
+// ── CSAT CALCULATION ─────────────────────────────────────────────────────────
+// CSAT (4-5): all rows with rating ≥4, no filters whatsoever
+// DSAT (1-3): bot filter + no-disposition drop + >6h drop + 30d dedup
 
-const surveyRows = agentRows.filter(r =>
-  r.csat !== null && r.csat !== undefined && !isNaN(r.csat)
-);
+const allRatedRows = agentRows.filter(r => r.csat !== null && r.csat !== undefined && !isNaN(r.csat));
 
-// R1: Drop late DSATs only. CSATs: untouched regardless of resMin.
-const r1Filtered = surveyRows.filter(r => {
-  const score = Number(r.csat);
-  if(score <= 3 && r.resMin && Number(r.resMin) > 360) return false; // stale DSAT
-  return true; // all CSATs (score >=4) and valid DSATs pass
-});
+// CSAT — untouched, all count
+const csatRows_m = allRatedRows.filter(r => Number(r.csat) >= 4);
 
-// R2: Deduplicate DSATs per phone+disposition within 30-day window. Keep chronologically first.
-// CSATs: always pass, no conditions.
-const r1Sorted = r1Filtered.slice().sort((a,b) =>
-  (a.startDT ? a.startDT.getTime() : 0) - (b.startDT ? b.startDT.getTime() : 0)
-);
-const dsatSeen = {}; // 'phone__disposition' → timestamp of first DSAT in window
-const r2Filtered = r1Sorted.filter(r => {
-  const score = Number(r.csat);
-  if(score >= 4) return true; // ← CSAT: always passes, no dedup, no conditions ever
-  if(!r.phone || !r.startDT) return true;
-  const dispKey = r.phone + '__' + (r.disposition || '');
-  const ts = r.startDT.getTime();
-  const windowMs = 30 * 24 * 60 * 60 * 1000;
-  if(dsatSeen[dispKey] !== undefined && (ts - dsatSeen[dispKey]) <= windowMs) return false;
-  dsatSeen[dispKey] = ts;
+// DSAT — apply rules
+const dsatRows_m = allRatedRows.filter(r => Number(r.csat) <= 3);
+
+// Rule 1: Resolved by Agent only (remove bot/AI resolved DSATs)
+const dsat_agentOnly = dsatRows_m.filter(r => r.isAgentHandled !== false);
+
+// Rule 2: No disposition → drop
+const dsat_pre = dsat_agentOnly.filter(r => r.disposition && String(r.disposition).trim() !== '');
+
+// Rule 3: Submitted >6h after Resolved At → drop
+const dsat_r1 = dsat_pre.filter(r => {
+  if(r.csatSubmittedAt && r.resolvedAt){
+    return (r.csatSubmittedAt - r.resolvedAt) / 3600000 <= 6;
+  }
+  if(r.resMin && Number(r.resMin) > 360) return false;
   return true;
 });
 
-// R3: Group by phone → one journey per customer.
-// Phone-only key prevents blank-disposition rows from merging different customers.
-const surveyJourneys = {};
-r2Filtered.forEach(r => {
-  const key = r.phone ? String(r.phone) : ('no_phone_' + Math.random());
-  if(!surveyJourneys[key]) surveyJourneys[key] = [];
-  surveyJourneys[key].push(r);
+// Rule 4: 30d dedup — same phone + same disposition, keep first
+const dsat_sorted = dsat_r1.slice().sort((a,b) =>
+  (a.startDT ? a.startDT.getTime() : 0) - (b.startDT ? b.startDT.getTime() : 0)
+);
+const dsatSeen = {};
+const dsat_final = dsat_sorted.filter(r => {
+  if(!r.phone || !r.startDT) return true;
+  const disp = r.disposition && String(r.disposition).trim() !== '' ? String(r.disposition).trim() : null;
+  const key = r.phone + '__' + (disp || ('tid_' + String(r.ticketId || r.phone)));
+  const ts = r.startDT.getTime();
+  const windowMs = 30 * 24 * 60 * 60 * 1000;
+  if(dsatSeen[key] !== undefined && (ts - dsatSeen[key]) <= windowMs) return false;
+  dsatSeen[key] = ts;
+  return true;
 });
 
-const finalizedJourneys = [];
-let recoveredJourneyCount = 0;
+// Final numbers
+const totalCsatM      = csatRows_m.length;
+const totalDsatM      = dsat_final.length;
+const totalRatedM     = totalCsatM + totalDsatM;
+const totalDsatRemoved = dsatRows_m.length - totalDsatM;
+const allScores        = [...csatRows_m, ...dsat_final];
+const avgRatingM       = allScores.length ? allScores.reduce((a,r) => a + Number(r.csat), 0) / allScores.length : 0;
+const csatPctM         = totalRatedM ? (totalCsatM / totalRatedM) * 100 : 0;
 
-Object.values(surveyJourneys).forEach(rows => {
-  rows.sort((a,b) =>
-    (a.startDT ? a.startDT.getTime() : 0) - (b.startDT ? b.startDT.getTime() : 0)
-  );
-  const csatRows = rows.filter(r => Number(r.csat) >= 4);
-  const dsatRows = rows.filter(r => Number(r.csat) <= 3);
+// Aliases for card rendering
+const rawCsatGood  = totalCsatM;
+const rawCsatPct   = csatPctM;
+const rawAvgRating = avgRatingM;
+const allCsatRows  = allRatedRows;
 
-  let finalJourney = null;
-  if(csatRows.length > 0){
-    // CSAT present → recovery wins. Count as recovered if DSAT also existed.
-    finalJourney = csatRows[csatRows.length - 1];
-    if(dsatRows.length > 0) recoveredJourneyCount++;
-  } else if(dsatRows.length > 0){
-    finalJourney = dsatRows[dsatRows.length - 1];
-  } else {
-    finalJourney = rows[rows.length - 1];
-  }
-  if(finalJourney) finalizedJourneys.push(finalJourney);
-});
-
-// FINAL METRICS
-const totalSurveyed = finalizedJourneys.length;
-const totalCsat     = finalizedJourneys.filter(r => Number(r.csat) >= 4).length;
-const totalDsat     = finalizedJourneys.filter(r => Number(r.csat) <= 3).length;
-
-const operationalCsat = totalSurveyed
-  ? (totalCsat / totalSurveyed) * 100 : 0;
-
-const operationalRating = totalSurveyed
-  ? finalizedJourneys.reduce((a,b) => a + Number(b.csat || 0), 0) / totalSurveyed : 0;
-
-const recoveryRate = totalSurveyed
-  ? (recoveredJourneyCount / totalSurveyed) * 100 : 0;
 
   // KPI ROW
   document.getElementById('kpi-monthly').innerHTML=`
@@ -3226,23 +3516,12 @@ const recoveryRate = totalSurveyed
     </div>
 
     <div class="kpi green">
-      <div class="lbl">⭐ CSAT %</div>
-      <div class="val">${avgCsat.toFixed(1)}%</div>
-      <div class="sub">${(avgCsat/20).toFixed(1)} / 5 avg rating</div>
+      <div class="lbl">⭐ CSAT Rating</div>
+      <div class="val">${avgRatingM.toFixed(1)}<span style="font-size:14px;color:var(--muted)">/5</span></div>
+      <div class="sub">${csatPctM.toFixed(1)}% · ${totalCsatM} CSAT · ${totalDsatM} DSAT · ${totalDsatRemoved} DSATs removed</div>
     </div>
 
-    <div class="kpi emerald">
-      <div class="lbl">🛡 Operational CSAT</div>
-      <div class="val">${operationalCsat.toFixed(1)}%</div>
-      <div class="sub">${operationalRating.toFixed(2)}/5 · ${totalCsat} CSAT · ${totalDsat} DSAT · ${totalSurveyed} journeys</div>
-    </div>
-    <div class="kpi cyan">
-      <div class="lbl">🔄 Recovery Rate</div>
-      <div class="val">${recoveryRate.toFixed(1)}%</div>
-      <div class="sub">${recoveredJourneyCount} journeys recovered (DSAT→CSAT)</div>
-    </div>
 
-    
 
 
     <div class="kpi amber">
@@ -3263,11 +3542,12 @@ const recoveryRate = totalSurveyed
       <div class="sub">Daily average repeat behavior</div>
     </div>
 
-    <div class="kpi gold">
-      <div class="lbl">🤖 AI Relief</div>
-      <div class="val">0.0%</div>
-      <div class="sub">All contacts reached a human agent — no bot-only deflection detected</div>
-    </div>
+    ${(()=>{
+      const ar=computeAiRelief();
+      const pct=ar?ar.actualPct:0;
+      const sub=ar&&ar.totalDemand?`${ar.actualBotHandled} bot-closed of ${ar.totalDemand} total`:'Upload Tickets All + AA';
+      return `<div class="kpi gold"><div class="lbl">🤖 AI Relief</div><div class="val">${pct.toFixed(1)}%</div><div class="sub">${sub}</div></div>`;
+    })()}
 
     <div class="kpi rose">
       <div class="lbl">👥 Active Agents</div>
@@ -3531,116 +3811,6 @@ const recoveryRate = totalSurveyed
     }
   );
 
-  // ── WAIT TIME TABLE ────────────────────────────────────────────────────
-  const dowNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const waitByDay = {};
-  agentRows.forEach(r => {
-    if(!r.startDT) return;
-    const dk = r.startDT.toISOString().slice(0,10);
-    if(!waitByDay[dk]) waitByDay[dk] = { vol:0, waits:[], waiters:0 };
-    waitByDay[dk].vol++;
-    waitByDay[dk].waits.push(r.waitMin || 0);
-    if(r.hasWait) waitByDay[dk].waiters++;
-  });
-
-  const waitDayKeys = Object.keys(waitByDay).sort();
-  const waitDayVols = waitDayKeys.map(d => waitByDay[d].vol);
-  const maxVol = Math.max(...waitDayVols);
-  const minVol = Math.min(...waitDayVols);
-
-  const waitDayAvgs = waitDayKeys.map(d => {
-    const ws = waitByDay[d].waits;
-    return ws.length ? ws.reduce((a,b)=>a+b,0)/ws.length : 0;
-  });
-
-  document.getElementById('monthly-wait-body').innerHTML = waitDayKeys.map((dk, i) => {
-    const v = waitByDay[dk];
-    const avgW = waitDayAvgs[i].toFixed(1);
-    const isHeaviest = v.vol === maxVol;
-    const isLightest = v.vol === minVol;
-    const flag = isHeaviest ? '🔴 Heaviest' : isLightest ? '🟢 Lightest' : '';
-    const dow = dowNames[new Date(dk).getDay()];
-    const barPct = maxVol ? Math.round(v.vol/maxVol*100) : 0;
-    const barColor = isHeaviest ? '#dc2626' : isLightest ? '#16a34a' : '#3b82f6';
-    return `<tr style="${isHeaviest?'background:#fff1f2':isLightest?'background:#f0fdf4':''}">
-      <td><strong>${dk}</strong></td>
-      <td style="color:var(--muted)">${dow}</td>
-      <td>
-        <div style="display:flex;align-items:center;gap:6px">
-          <div style="background:#f1f5f9;border-radius:3px;height:6px;width:80px;overflow:hidden">
-            <div style="height:100%;border-radius:3px;background:${barColor};width:${barPct}%"></div>
-          </div>
-          <strong>${v.vol}</strong>
-        </div>
-      </td>
-      <td style="font-weight:700;color:${avgW>5?'#dc2626':avgW>2?'#d97706':'#16a34a'}">${avgW} min</td>
-      <td style="color:var(--muted)">${v.waiters}</td>
-      <td>${flag}</td>
-    </tr>`;
-  }).join('');
-
-  // ── TOP 5 REPEAT DRIVERS (30 days) ────────────────────────────────────
-  const dispRepeatMap = {};
-  agentRows.forEach(r => {
-    if(!r.disposition) return;
-    if(!dispRepeatMap[r.disposition]) dispRepeatMap[r.disposition] = { total:0, repeat:0, rows:[] };
-    dispRepeatMap[r.disposition].total++;
-    if(r.weeklyRepeat || r.dailyRepeat || r.isRepeat){
-      dispRepeatMap[r.disposition].repeat++;
-      dispRepeatMap[r.disposition].rows.push(r);
-    }
-  });
-
-  const top5Monthly = Object.entries(dispRepeatMap)
-    .filter(([,v]) => v.repeat > 0)
-    .sort((a,b) => b[1].repeat - a[1].repeat)
-    .slice(0, 5);
-
-  const m5colors = [
-    { bg:'#fef2f2', border:'#dc2626', rank:'#991b1b', badge:'#dc2626' },
-    { bg:'#fff7ed', border:'#f59e0b', rank:'#92400e', badge:'#b45309' },
-    { bg:'#fffbeb', border:'#eab308', rank:'#713f12', badge:'#854d0e' },
-    { bg:'#eff6ff', border:'#3b82f6', rank:'#1e3a8a', badge:'#1d4ed8' },
-    { bg:'#f0fdf4', border:'#10b981', rank:'#065f46', badge:'#059669' },
-  ];
-  const m5icons = ['🚨','⚠️','🔶','🔸','🔔'];
-
-  document.getElementById('monthly-top5-cards').innerHTML = top5Monthly.map(([disp, v], i) => {
-    const pct = v.total ? (v.repeat/v.total*100).toFixed(1) : '0.0';
-    const c = m5colors[i];
-    const safeDisp = disp.replace(/'/g,"\'").replace(/"/g,'&quot;');
-    return `
-      <div onclick="downloadMonthlyRepeatCSV('${safeDisp}')"
-        style="background:${c.bg};border:2px solid ${c.border};border-radius:14px;padding:18px 16px;cursor:pointer;transition:transform .15s,box-shadow .15s;position:relative;overflow:hidden"
-        onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'"
-        onmouseout="this.style.transform='';this.style.boxShadow=''">
-        <div style="position:absolute;top:10px;right:12px;font-size:22px;opacity:.15;font-weight:900;color:${c.rank}">#${i+1}</div>
-        <div style="font-size:20px;margin-bottom:6px">${m5icons[i]}</div>
-        <div style="font-size:13px;font-weight:800;color:${c.rank};margin-bottom:10px;line-height:1.3;padding-right:28px">${disp}</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <div style="background:${c.border};color:#fff;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700">${v.repeat} repeats</div>
-          <div style="background:#fff;border:1px solid ${c.border};color:${c.rank};border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700">${pct}% rate</div>
-        </div>
-        <div style="margin-top:10px;font-size:10px;color:${c.badge};font-weight:600">⬇ Click to download CSV</div>
-      </div>`;
-  }).join('') || '<div style="color:var(--muted);font-size:13px;padding:20px">No repeat disposition data found — ensure Tickets All is uploaded.</div>';
-
-}
-
-function downloadMonthlyRepeatCSV(disposition){
-  if(!G) return;
-  const rows = G.wa.filter(r =>
-    r.disposition === disposition &&
-    (r.weeklyRepeat || r.dailyRepeat || r.isRepeat)
-  );
-  if(!rows.length){ alert('No repeat tickets for: ' + disposition); return; }
-  const cols = ['ticketId','phone','agent','disposition','csat','resMin'];
-  let csv = cols.join(',') + '\n';
-  rows.forEach(r => { csv += cols.map(c => '"'+(r[c]??'')+'"').join(',') + '\n'; });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-  a.download = 'monthly_repeat_' + disposition.replace(/\s+/g,'_') + '.csv';
-  a.click();
 }
 
 const oldRenderTab = renderTab;
