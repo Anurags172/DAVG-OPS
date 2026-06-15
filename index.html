@@ -2837,32 +2837,6 @@ document.getElementById('ai-survey-body').innerHTML = `
       </div>` : ''}
     `;
   }
-    const agDays=[...new Set(wa.filter(r=>r.csat!==null&&r.startDT).map(r=>r.startDT.toISOString().slice(0,10)))].sort();
-    const a7warn=document.getElementById('agent-7day-warn');
-    const a7wrap=document.getElementById('agent-7day-wrap');
-    if(agDays.length<2){a7warn.style.display='block';a7wrap.style.display='none';}
-    else{
-      a7warn.style.display='none';a7wrap.style.display='block';
-      destroyC('c-agent-7day');
-      const _elAg7=document.getElementById('c-agent-7day');
-      if(!_elAg7){return;}
-      CH['c-agent-7day']=new Chart(_elAg7,{
-        type:'bar',
-        data:{
-          labels:agDays.map(d=>{const dt=new Date(d);return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});}),
-          datasets:AGENTS.map(a=>({
-            label:a.split(' ')[0],
-            data:agDays.map(d=>(agentByDay[a]&&agentByDay[a][d])?agentByDay[a][d].good:0),
-            backgroundColor:agC(a),borderRadius:3,stack:'s'
-          }))
-        },
-        options:{
-          responsive:true,maintainAspectRatio:false,
-          plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10,padding:6}}},
-          scales:{x:{ticks:{font:{size:10}},stacked:true},y:{ticks:{font:{size:11}},beginAtZero:true,stacked:true}}
-        }
-      });
-    }
 
 
   if(name==='roster'){
