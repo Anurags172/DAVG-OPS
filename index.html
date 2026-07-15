@@ -1348,7 +1348,18 @@ function buildData(aaRows, tktRows){
     const ticketId2=String(r['Ticket ID']||'').replace('#','').trim();
     const bestTkt=tktById[ticketId2]||null;
 
-    const disposition=bestTkt?String(bestTkt['Disposition: L2 Disposition']||'').trim():'';
+    const dispRaw = bestTkt ? String(bestTkt['Disposition: L2 Disposition']||'').trim() : '';
+    let disposition = dispRaw;
+    if(!disposition && bestTkt){
+      // Fallback: Flowcall's export sometimes drops the dedicated column and
+      // bundles L1/L2 into a comma-separated "Category" field instead, e.g.
+      // "Exchanges, Fit Too Loose Exchanges, vest, shapewear" (L1, L2, product, subcat)
+      const catRaw = String(bestTkt['Category']||'').trim();
+      if(catRaw){
+        const parts = catRaw.split(',').map(p=>p.trim()).filter(Boolean);
+        if(parts.length >= 4) disposition = parts[1]; // L2 slot
+      }
+    }
     const product=bestTkt?String(bestTkt['Subcategory']||bestTkt['Disposition: Product Category']||'').trim():'';
 
     // CSAT join: ticket exists in AA + has rating = count it. No bot filter. No dedup. 
@@ -1459,7 +1470,10 @@ function getWeekKey(date){
 }
 
 function getDateKey(date){
-  return date.toISOString().split('T')[0];
+  const y = date.getFullYear();
+  const m = String(date.getMonth()+1).padStart(2,'0');
+  const d = String(date.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
 }
 
 // ─── RENDER ALL ───────────────────────────────────────────────────────────────
@@ -1492,10 +1506,12 @@ function renderTab(name){
     wa.forEach(r=>{
       if(!r.startDT)return;
 
-      const d = r.startDT.getDay();
+      const dateKey = getDateKey(r.startDT);
 
-      if(!dailyMap[d]){
-        dailyMap[d]={
+      if(!dailyMap[dateKey]){
+        dailyMap[dateKey]={
+          dayName: dayNames[r.startDT.getDay()],
+          dateObj: new Date(r.startDT.getFullYear(), r.startDT.getMonth(), r.startDT.getDate()),
           incoming:0,
           csat:[],
           wait:[],
@@ -1503,34 +1519,36 @@ function renderTab(name){
         };
       }
 
-      dailyMap[d].incoming++;
+      dailyMap[dateKey].incoming++;
 
       if(r.csat!==null){
-        dailyMap[d].csat.push(r.csat);
+        dailyMap[dateKey].csat.push(r.csat);
       }
 
       if(r.waitMin!==null){
-        dailyMap[d].wait.push(r.waitMin);
+        dailyMap[dateKey].wait.push(r.waitMin);
       }
 
       if(r.disposition){
-        dailyMap[d].dispositions[r.disposition]=(dailyMap[d].dispositions[r.disposition]||0)+1;
+        dailyMap[dateKey].dispositions[r.disposition]=(dailyMap[dateKey].dispositions[r.disposition]||0)+1;
       }
     });
 
     document.getElementById('ops-weekly-body').innerHTML =
     Object.keys(dailyMap)
-    .sort((a,b)=>a-b)
-    .map(d=>{
+    .sort((a,b)=>dailyMap[a].dateObj - dailyMap[b].dateObj)
+    .map(dateKey=>{
 
-      const row=dailyMap[d];
+      const row=dailyMap[dateKey];
 
       const topDisp=Object.entries(row.dispositions)
         .sort((a,b)=>b[1]-a[1])[0];
 
+      const dateLabel = row.dateObj.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
+
       return `
         <tr>
-          <td><strong>${dayNames[d]}</strong></td>
+          <td><strong>${row.dayName}</strong> <span style="color:var(--muted);font-weight:400">${dateLabel}</span></td>
           <td>${row.incoming}</td>
           <td>${row.csat.length?fmt(avg(row.csat),1):'-'}</td>
           <td>${row.wait.length?fmt(avg(row.wait),1)+' min':'-'}</td>
@@ -2621,10 +2639,15 @@ document.getElementById('ai-survey-body').innerHTML = `
       return true;
     });
 
-    // Rule 2: No disposition → drop
+    // Rule 2 (updated): disposition is no longer required to count a DSAT.
+    // Flowcall's export sometimes drops the disposition column entirely, and
+    // that should never zero out real DSATs. A DSAT counts as long as it's
+    // tagged to a real agent (Rule 1 already handles the bot filter).
+    // We still track how many are missing disposition, purely for visibility —
+    // they show up as "No Disposition" in the breakdown table, not dropped.
     const dsat_disp = dsat_agent.filter(r => {
       const hasDisp = r.disposition && String(r.disposition).trim() !== '';
-      if(!hasDisp){ removed.noDisp.push(r); return false; }
+      if(!hasDisp){ removed.noDisp.push(r); }
       return true;
     });
 
@@ -2663,7 +2686,7 @@ document.getElementById('ai-survey-body').innerHTML = `
     const csatGood = finalRows.filter(r => Number(r.csat) >= 4).length;
     const csatBad  = finalRows.filter(r => Number(r.csat) <= 3).length;
     const avgScore = finalRows.length ? finalRows.reduce((a,r) => a + Number(r.csat), 0) / finalRows.length : 0;
-    const totalRemoved = removed.botDsat.length + removed.noDisp.length + removed.lateDsat.length + removed.repeatDsat.length;
+    const totalRemoved = removed.botDsat.length + removed.lateDsat.length + removed.repeatDsat.length;
 
     document.getElementById('kpi-csat').innerHTML=[
       {l:'Surveyed',v:finalRows.length,s:`${allRated.length} raw · ${totalRemoved} cleaned`,c:''},
@@ -2790,10 +2813,10 @@ document.getElementById('ai-survey-body').innerHTML = `
           <div style="font-size:24px;font-weight:900;color:#991b1b">${removed.botDsat.length}</div>
           <div style="font-size:10px;color:#f87171">Resolved by AI, not agent</div>
         </div>
-        <div style="background:#fff1f2;border:1px solid #fca5a5;border-radius:10px;padding:12px;text-align:center">
-          <div style="font-size:11px;color:#991b1b;font-weight:700">NO DISPOSITION</div>
-          <div style="font-size:24px;font-weight:900;color:#991b1b">${removed.noDisp.length}</div>
-          <div style="font-size:10px;color:#f87171">DSAT with blank disposition</div>
+        <div style="background:#f0f9ff;border:1px solid #7dd3fc;border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:11px;color:#075985;font-weight:700">NO DISPOSITION (kept)</div>
+          <div style="font-size:24px;font-weight:900;color:#075985">${removed.noDisp.length}</div>
+          <div style="font-size:10px;color:#38bdf8">Still counted as DSAT, just untagged</div>
         </div>
         <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:12px;text-align:center">
           <div style="font-size:11px;color:#92400e;font-weight:700">LATE DSAT &gt;6H</div>
