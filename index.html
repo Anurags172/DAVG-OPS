@@ -851,6 +851,17 @@ to{transform:rotate(360deg)}
     </div>
 
     <div class="card">
+      <h3>⏱️ Same-disposition recontact gap distribution</h3>
+      <p style="font-size:11px;color:var(--muted);margin:-4px 0 12px">Time between a chat closing and the customer coming back on the SAME disposition. Use this to pick the cooldown threshold — don't guess it.</p>
+      <table class="table-standard">
+        <thead><tr><th>Gap since resolution</th><th># Recontacts</th><th>% of recontacts</th></tr></thead>
+        <tbody id="repeat-gap-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
       <h3>🔁 Repeat by disposition</h3>
       <table class="table-standard">
         <thead>
@@ -898,6 +909,7 @@ to{transform:rotate(360deg)}
       </table>
     </div>
   </div>
+
 
   <div id="repeat-aging-section">
     <div class="card">
@@ -1379,7 +1391,6 @@ function buildData(aaRows, tktRows){
       hour:start?start.getHours():null,
       dow:start?start.getDay():null,
       startDT:start,endDT:end,
-      isRepeat:phoneFreq[phone]>1?1:0,
       ticketId:r['Ticket ID']||'',
       frMin:parseMMSS(r['First Response Duration (mm:ss)']),
       activeMin:parseMMSS(r['Active Time (mm:ss)']),
@@ -1390,7 +1401,7 @@ function buildData(aaRows, tktRows){
       isAgentHandled,
       withinSLA:resMin!==null?resMin<=SLA_THRESHOLD:null,
       resolvedAt: bestTkt ? parseDT(bestTkt['Resolved At']) : null,
-      csatSubmittedAt: bestTkt ? parseDT(String(bestTkt['CSAT Submitted At']||'').replace('T',' ').replace('Z','').split('.')[0]) : null,
+      csatSubmittedAt: bestTkt ? parseDT(bestTkt['CSAT Submitted At']) : null,
     };
   });
 
@@ -1416,17 +1427,29 @@ function buildData(aaRows, tktRows){
     weeklyGroups[weeklyKey].push(r);
   });
 
+  // A repeat only counts if the customer comes back on the SAME disposition
+  // MORE than 1 hour after their previous chat was resolved. Anything within
+  // that hour is treated as a continuation of the same conversation (e.g. a
+  // "thank you / ok got it" reply), not a genuine repeat contact.
+  const REPEAT_COOLDOWN_MS = 60 * 60 * 1000;
+
   Object.values(dailyGroups).forEach(rows=>{
     rows.sort((a,b)=>a.startDT-b.startDT);
     rows.forEach((r,i)=>{
-      r.dailyRepeat = i>0 ? 1 : 0;
+      if(i===0){ r.dailyRepeat = 0; return; }
+      const prevClose = rows[i-1].resolvedAt || rows[i-1].endDT;
+      const gapMs = prevClose ? (r.startDT - prevClose) : Infinity;
+      r.dailyRepeat = gapMs > REPEAT_COOLDOWN_MS ? 1 : 0;
     });
   });
 
   Object.values(weeklyGroups).forEach(rows=>{
     rows.sort((a,b)=>a.startDT-b.startDT);
     rows.forEach((r,i)=>{
-      r.weeklyRepeat = i>0 ? 1 : 0;
+      if(i===0){ r.weeklyRepeat = 0; return; }
+      const prevClose = rows[i-1].resolvedAt || rows[i-1].endDT;
+      const gapMs = prevClose ? (r.startDT - prevClose) : Infinity;
+      r.weeklyRepeat = gapMs > REPEAT_COOLDOWN_MS ? 1 : 0;
     });
   });
 
@@ -1625,7 +1648,7 @@ document.getElementById('weekly-disp-body').innerHTML=
     const comp=wa.filter(r=>r.status==='completed').length;
     const trans=wa.filter(r=>r.status==='transferred').length;
     const m2=med(resTimes),p75=pct(resTimes,75),p90=pct(resTimes,90);
-    const rep=wa.filter(r=>r.isRepeat).length;
+    const rep=wa.filter(r=>r.dailyRepeat).length;
     const uniq=Object.keys(phoneFreq).length;
     const frT=wa.map(r=>r.frMin).filter(v=>v!==null&&v>=0&&v<60);
     const csatR=wa.filter(r=>r.csat!==null);
@@ -1639,13 +1662,16 @@ document.getElementById('weekly-disp-body').innerHTML=
       {l:'Repeat Chats',v:rep,s:(total?(rep/total*100).toFixed(1)+'%':''),c:'red'},
       {l:'Avg 1st Resp',v:frT.length?fmt(avg(frT))+' min':'-',c:'teal'},
       (()=>{
-        // Avg CSAT: CSAT untouched, DSAT gets bot filter + no-disp + >6h + 30d dedup
+        // Avg CSAT: CSAT untouched, DSAT gets bot filter + >6h + 30d dedup
         const allR = wa.filter(r => r.csat !== null && !isNaN(r.csat));
         if(!allR.length) return {l:'Avg CSAT',v:'No data',s:'',c:''};
         const csatR = allR.filter(r => Number(r.csat) >= 4);
         const dsatR = allR.filter(r => Number(r.csat) <= 3);
         const d1 = dsatR.filter(r => r.isAgentHandled !== false);
-        const d2 = d1.filter(r => r.disposition && String(r.disposition).trim() !== '');
+        // Rule 2: disposition is no longer required to count a DSAT (matches
+        // the CSAT & DSAT tab's engine) — Flowcall exports sometimes drop the
+        // disposition column, and that should never zero out real DSATs.
+        const d2 = d1;
         const d3 = d2.filter(r => {
           if(r.csatSubmittedAt && r.resolvedAt) return (r.csatSubmittedAt - r.resolvedAt)/3600000 <= 6;
           if(r.resMin) return Number(r.resMin) <= 360;
@@ -1887,14 +1913,14 @@ document.getElementById('weekly-disp-body').innerHTML=
   }
 
   if(name==='repeat'){
-    const rep=wa.filter(r=>r.isRepeat).length;
+    const rep=wa.filter(r=>r.dailyRepeat).length;
     document.getElementById('kpi-repeat').innerHTML=[
       {l:'Total Chats',v:total,c:''},
       {l:'Repeat Chats',v:rep,c:'red'},
       {l:'Repeat Chat %',v:(total?rep/total*100:0).toFixed(1)+'%',c:'red'},
       {l:'Unique Customers',v:Object.keys(phoneFreq).length,c:''},
     ].map(k=>`<div class="kpi ${k.c}"><div class="lbl">${k.l}</div><div class="val">${k.v}</div></div>`).join('');
-    document.getElementById('repeat-tbody').innerHTML=AGENTS.map(a=>{const rows=wa.filter(r=>r.agent===a);const r2=rows.filter(r=>r.isRepeat).length;const p2=rows.length?r2/rows.length*100:0;return`<tr><td><span class="dot" style="background:${agC(a)}"></span>${a}</td><td>${rows.length}</td><td>${r2}</td><td><strong>${p2.toFixed(1)}%</strong></td><td><span class="badge ${p2>60?'br':p2>40?'ba':'bg'}">${p2>60?'High':p2>40?'Mid':'Low'}</span></td></tr>`;}).join('');
+    document.getElementById('repeat-tbody').innerHTML=AGENTS.map(a=>{const rows=wa.filter(r=>r.agent===a);const r2=rows.filter(r=>r.dailyRepeat).length;const p2=rows.length?r2/rows.length*100:0;return`<tr><td><span class="dot" style="background:${agC(a)}"></span>${a}</td><td>${rows.length}</td><td>${r2}</td><td><strong>${p2.toFixed(1)}%</strong></td><td><span class="badge ${p2>60?'br':p2>40?'ba':'bg'}">${p2>60?'High':p2>40?'Mid':'Low'}</span></td></tr>`;}).join('');
     const fb={'1':0,'2':0,'3':0,'4+':0};Object.values(phoneFreq).forEach(c=>{if(c===1)fb['1']++;else if(c===2)fb['2']++;else if(c===3)fb['3']++;else fb['4+']++;});
     destroyC('c-freq');CH['c-freq']=new Chart(document.getElementById('c-freq'),{type:'bar',data:{labels:['1 contact','2 contacts','3 contacts','4+ contacts'],datasets:[{data:Object.values(fb),backgroundColor:['#16a34a','#ca8a04','#dc2626','#991b1b'],borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:11}}},y:{ticks:{font:{size:11}},beginAtZero:true}}}});
   }
@@ -1902,6 +1928,42 @@ document.getElementById('weekly-disp-body').innerHTML=
   
   if(name==='repeat'){
     const dowNames=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+    // ── Diagnostic: distribution of gap-since-resolution for same phone+disposition
+    // recontacts, computed with NO threshold applied. This tells you where the
+    // real cluster boundary is, instead of guessing a cooldown value.
+    (()=>{
+      const groups={};
+      wa.forEach(r=>{
+        if(!r.phone||!r.disposition||!r.startDT) return;
+        const key=r.phone+'__'+r.disposition;
+        (groups[key]=groups[key]||[]).push(r);
+      });
+      const buckets=[
+        {l:'< 10 min (likely same convo / thank-you)',min:0,max:10,n:0},
+        {l:'10–30 min',min:10,max:30,n:0},
+        {l:'30–60 min',min:30,max:60,n:0},
+        {l:'1–6 hr',min:60,max:360,n:0},
+        {l:'6–24 hr',min:360,max:1440,n:0},
+        {l:'> 24 hr (genuine repeat contact)',min:1440,max:Infinity,n:0},
+      ];
+      let totalGaps=0;
+      Object.values(groups).forEach(rows=>{
+        rows.sort((a,b)=>a.startDT-b.startDT);
+        for(let i=1;i<rows.length;i++){
+          const prevClose=rows[i-1].resolvedAt||rows[i-1].endDT;
+          if(!prevClose) continue;
+          const gapMin=(rows[i].startDT-prevClose)/60000;
+          if(gapMin<0) continue; // bad timestamp data, skip rather than misbucket
+          totalGaps++;
+          const b=buckets.find(b=>gapMin>=b.min&&gapMin<b.max);
+          if(b) b.n++;
+        }
+      });
+      document.getElementById('repeat-gap-tbody').innerHTML = totalGaps
+        ? buckets.map(b=>`<tr><td>${b.l}</td><td>${b.n}</td><td>${totalGaps?(b.n/totalGaps*100).toFixed(1):'0.0'}%</td></tr>`).join('')
+        : '<tr><td colspan="3" style="color:#94a3b8">No same-disposition recontacts found</td></tr>';
+    })();
 
     const dailyStats={};
 
@@ -3004,7 +3066,7 @@ function renderDispRepeatByDay(){
   const dispDayMap = {};
   wa.forEach(r => {
     if(!r.startDT || !r.disposition) return;
-    if(!r.dailyRepeat && !r.weeklyRepeat && !r.isRepeat) return; // only repeat rows
+    if(!r.dailyRepeat && !r.weeklyRepeat) return; // only repeat rows
     const day  = dowNames[r.startDT.getDay()];
     const disp = r.disposition;
     if(!dispDayMap[disp]) dispDayMap[disp] = {};
@@ -3075,7 +3137,7 @@ function renderTop5RepeatDrivers(){
     if(!r.disposition) return;
     if(!dispMap[r.disposition]) dispMap[r.disposition] = { total: 0, repeat: 0 };
     dispMap[r.disposition].total++;
-    if(r.dailyRepeat || r.weeklyRepeat || r.isRepeat) dispMap[r.disposition].repeat++;
+    if(r.dailyRepeat || r.weeklyRepeat) dispMap[r.disposition].repeat++;
   });
 
   const top5 = Object.entries(dispMap)
@@ -3122,7 +3184,7 @@ function downloadRepeatDispositionCSV(disposition){
   if(!G) return;
   const repeatRows = G.wa.filter(r =>
     r.disposition === disposition &&
-    (r.dailyRepeat || r.weeklyRepeat || r.isRepeat)
+    (r.dailyRepeat || r.weeklyRepeat)
   );
   if(!repeatRows.length){ alert('No repeat tickets found for: ' + disposition); return; }
 
@@ -3371,7 +3433,7 @@ function renderMonthlyPerformance(){
 
     daily[day].unique.add(customer);
 
-    if(r.isRepeat){
+    if(r.dailyRepeat){
       daily[day].repeat.add(customer);
     }
 
@@ -3611,7 +3673,7 @@ const allCsatRows  = allRatedRows;
 
       byDay[day].unique.add(customer);
 
-      if(r.isRepeat){
+      if(r.dailyRepeat){
         byDay[day].repeat.add(customer);
       }
 
