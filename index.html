@@ -1667,7 +1667,13 @@ document.getElementById('weekly-disp-body').innerHTML=
         if(!allR.length) return {l:'Avg CSAT',v:'No data',s:'',c:''};
         const csatR = allR.filter(r => Number(r.csat) >= 4);
         const dsatR = allR.filter(r => Number(r.csat) <= 3);
-        const d1 = dsatR.filter(r => r.isAgentHandled !== false);
+        // Rule 0: Fraud/Spam & unresponsive customers dropped entirely (matches
+        // the CSAT & DSAT tab's engine).
+        const d0 = dsatR.filter(r => {
+          const n = String(r.disposition||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+          return n!=='fraudspam' && n!=='informationnotprovided';
+        });
+        const d1 = d0.filter(r => r.isAgentHandled !== false);
         // Rule 2: disposition is no longer required to count a DSAT (matches
         // the CSAT & DSAT tab's engine) — Flowcall exports sometimes drop the
         // disposition column, and that should never zero out real DSATs.
@@ -2685,7 +2691,7 @@ document.getElementById('ai-survey-body').innerHTML = `
     document.getElementById('csat-warn').style.display = allRated.length ? 'none' : 'block';
     if(!allRated.length){ document.getElementById('kpi-csat').innerHTML=''; return; }
 
-    const removed = { botDsat:[], noDisp:[], lateDsat:[], repeatDsat:[], recovered:[] };
+    const removed = { fraudSpam:[], botDsat:[], noDisp:[], lateDsat:[], repeatDsat:[], recovered:[] };
 
     // CSAT (4-5) — completely untouched
     const cleanCsats = allRated.filter(r => Number(r.csat) >= 4);
@@ -2693,8 +2699,23 @@ document.getElementById('ai-survey-body').innerHTML = `
     // DSAT (1-3) — apply all rules
     const allDsats = allRated.filter(r => Number(r.csat) <= 3);
 
+    // Rule 0: Fraud/Spam & unresponsive customers ("Fraud Spam", "Information
+    // NotProvided") aren't genuine dissatisfaction — the customer either never
+    // engaged or is a bad-faith/spam contact — so these are dropped entirely
+    // before any other rule runs, and tracked separately for visibility.
+    function isFraudOrUnresponsive(disp){
+      const n = String(disp||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+      return n==='fraudspam' || n==='informationnotprovided';
+    }
+    const dsat_fraud = allDsats.filter(r => {
+      if(isFraudOrUnresponsive(r.disposition)){
+        removed.fraudSpam.push(r); return false;
+      }
+      return true;
+    });
+
     // Rule 1: Resolved by Agent only — remove bot/AI DSATs
-    const dsat_agent = allDsats.filter(r => {
+    const dsat_agent = dsat_fraud.filter(r => {
       if(r.isAgentHandled === false){
         removed.botDsat.push(r); return false;
       }
@@ -2748,7 +2769,7 @@ document.getElementById('ai-survey-body').innerHTML = `
     const csatGood = finalRows.filter(r => Number(r.csat) >= 4).length;
     const csatBad  = finalRows.filter(r => Number(r.csat) <= 3).length;
     const avgScore = finalRows.length ? finalRows.reduce((a,r) => a + Number(r.csat), 0) / finalRows.length : 0;
-    const totalRemoved = removed.botDsat.length + removed.lateDsat.length + removed.repeatDsat.length;
+    const totalRemoved = removed.fraudSpam.length + removed.botDsat.length + removed.lateDsat.length + removed.repeatDsat.length;
 
     document.getElementById('kpi-csat').innerHTML=[
       {l:'Surveyed',v:finalRows.length,s:`${allRated.length} raw · ${totalRemoved} cleaned`,c:''},
@@ -2870,6 +2891,11 @@ document.getElementById('ai-survey-body').innerHTML = `
           <div style="font-size:24px;font-weight:900;color:#166534">${allRated.length}</div>
           <div style="font-size:10px;color:#4ade80">All rated rows from AA+TKT join</div>
         </div>
+        <div style="background:#fdf2f8;border:1px solid #f9a8d4;border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:11px;color:#9d174d;font-weight:700">FRAUD/SPAM &amp; UNRESPONSIVE</div>
+          <div style="font-size:24px;font-weight:900;color:#9d174d">${removed.fraudSpam.length}</div>
+          <div style="font-size:10px;color:#ec4899">Tagged Fraud Spam / Information NotProvided</div>
+        </div>
         <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:12px;text-align:center">
           <div style="font-size:11px;color:#991b1b;font-weight:700">BOT DSAT</div>
           <div style="font-size:24px;font-weight:900;color:#991b1b">${removed.botDsat.length}</div>
@@ -2896,6 +2922,17 @@ document.getElementById('ai-survey-body').innerHTML = `
           <div style="font-size:10px;color:#3b82f6">${cleanCsats.length} CSAT + ${cleanDsats.length} DSAT</div>
         </div>
       </div>
+      ${removed.fraudSpam.length ? `
+      <div style="margin-top:8px">
+        <div style="font-size:12px;font-weight:700;color:#9d174d;margin-bottom:6px">🚫 Fraud/Spam &amp; unresponsive DSATs removed:</div>
+        <table class="table-standard"><thead><tr><th>Ticket</th><th>Agent</th><th>Phone</th><th>Disposition</th><th>Rating</th></tr></thead>
+        <tbody>${removed.fraudSpam.map(r=>`<tr>
+          <td>${r.ticketId}</td><td>${r.agent}</td>
+          <td>${r.phone?r.phone.slice(-4).padStart(10,'*'):'-'}</td>
+          <td style="font-size:10px">${r.disposition||'-'}</td>
+          <td><span class="badge br">${r.csat} Star</span></td>
+        </tr>`).join('')}</tbody></table>
+      </div>` : ''}
       ${removed.lateDsat.length ? `
       <div style="margin-top:8px">
         <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:6px">⏰ Late DSATs removed (>6h after closure):</div>
