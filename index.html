@@ -1303,6 +1303,83 @@ function getCSAT(r){
   return null;
 }
 
+// ─── CSAT/DSAT CLEANING ENGINE — single source of truth ───────────────────────
+// Every place that shows a CSAT/DSAT number (CSAT & DSAT tab, Summary KPI,
+// Weekly Operations Overview, anywhere else) must call this instead of
+// re-deriving its own copy — two engines silently drifting apart is exactly
+// the bug class we've hit twice already on this dashboard.
+function isFraudOrUnresponsive(disp){
+  const n = String(disp||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  return n==='fraudspam' || n==='spam' || n==='informationnotprovided';
+}
+function cleanCsatDsat(waRows){
+  const removed = { dupTicket:[], fraudSpam:[], botDsat:[], noDisp:[], lateDsat:[], repeatDsat:[] };
+  const allRated = waRows.filter(r => r.csat !== null && !isNaN(r.csat));
+
+  // Step 0: Dedup by Ticket ID. The same physical CSAT/DSAT survey response
+  // can appear on more than one Agent Activity row when a chat gets
+  // transferred between agents — each leg of the transfer re-logs the same
+  // Ticket ID as its own row.
+  const seenTid = {};
+  const allRatedUniq = allRated.filter(r => {
+    const tid = String(r.ticketId||'').replace('#','').trim();
+    if(!tid) return true;
+    if(seenTid[tid]){ removed.dupTicket.push(r); return false; }
+    seenTid[tid] = true; return true;
+  });
+
+  // CSAT (4-5) — completely untouched
+  const cleanCsats = allRatedUniq.filter(r => Number(r.csat) >= 4);
+
+  // DSAT (1-3) — apply all rules
+  const allDsats = allRatedUniq.filter(r => Number(r.csat) <= 3);
+
+  // Rule 0: Fraud/Spam & unresponsive customers dropped entirely.
+  const dsat_fraud = allDsats.filter(r => {
+    if(isFraudOrUnresponsive(r.disposition)){ removed.fraudSpam.push(r); return false; }
+    return true;
+  });
+
+  // Rule 1: Resolved by Agent only — remove bot/AI DSATs
+  const dsat_agent = dsat_fraud.filter(r => {
+    if(r.isAgentHandled === false){ removed.botDsat.push(r); return false; }
+    return true;
+  });
+
+  // Rule 2: disposition is no longer required to count a DSAT — still
+  // tracked for visibility, not dropped.
+  const dsat_disp = dsat_agent.filter(r => {
+    const hasDisp = r.disposition && String(r.disposition).trim() !== '';
+    if(!hasDisp){ removed.noDisp.push(r); }
+    return true;
+  });
+
+  // Rule 3: Submitted >6h after Resolved At → drop
+  const dsat_time = dsat_disp.filter(r => {
+    let gapHours = null;
+    if(r.csatSubmittedAt && r.resolvedAt) gapHours = (r.csatSubmittedAt - r.resolvedAt) / 3600000;
+    else if(r.resMin) gapHours = r.resMin / 60;
+    if(gapHours !== null && gapHours > 6){ removed.lateDsat.push({...r, _gapHours: gapHours}); return false; }
+    return true;
+  });
+
+  // Rule 4: 30d dedup — same phone, any disposition, keep first.
+  const dsat_sorted = dsat_time.slice().sort((a,b) =>
+    (a.startDT ? a.startDT.getTime() : 0) - (b.startDT ? b.startDT.getTime() : 0)
+  );
+  const dsatSeen = {};
+  const cleanDsats = dsat_sorted.filter(r => {
+    if(!r.phone || !r.startDT) return true;
+    const key = r.phone;
+    const ts = r.startDT.getTime();
+    const windowMs = 30 * 24 * 60 * 60 * 1000;
+    if(dsatSeen[key] !== undefined && (ts - dsatSeen[key]) <= windowMs){ removed.repeatDsat.push(r); return false; }
+    dsatSeen[key] = ts; return true;
+  });
+
+  return { allRated, cleanCsats, cleanDsats, removed };
+}
+
 // ─── STATS ────────────────────────────────────────────────────────────────────
 function pct(arr,p){if(!arr.length)return 0;const s=[...arr].sort((a,b)=>a-b);const i=(p/100)*(s.length-1);const lo=Math.floor(i),hi=Math.ceil(i);return s[lo]+(s[hi]-s[lo])*(i-lo);}
 function med(arr){return pct(arr,50);}
@@ -1526,6 +1603,13 @@ function renderTab(name){
     const dailyMap = {};
     const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
+    // Use the same cleaned CSAT/DSAT set as the CSAT & DSAT tab and the Avg
+    // CSAT KPI above — otherwise this table's daily average silently includes
+    // duplicate-ticket rows, fraud/spam DSATs, and un-deduped repeat DSATs
+    // that everywhere else on the dashboard excludes.
+    const {cleanCsats: wkCsats, cleanDsats: wkDsats} = cleanCsatDsat(wa);
+    const cleanedRowSet = new Set([...wkCsats, ...wkDsats]);
+
     wa.forEach(r=>{
       if(!r.startDT)return;
 
@@ -1544,7 +1628,7 @@ function renderTab(name){
 
       dailyMap[dateKey].incoming++;
 
-      if(r.csat!==null){
+      if(r.csat!==null && cleanedRowSet.has(r)){
         dailyMap[dateKey].csat.push(r.csat);
       }
 
@@ -1662,41 +1746,14 @@ document.getElementById('weekly-disp-body').innerHTML=
       {l:'Repeat Chats',v:rep,s:(total?(rep/total*100).toFixed(1)+'%':''),c:'red'},
       {l:'Avg 1st Resp',v:frT.length?fmt(avg(frT))+' min':'-',c:'teal'},
       (()=>{
-        // Avg CSAT: CSAT untouched, DSAT gets bot filter + >6h + 30d dedup
-        const allR = wa.filter(r => r.csat !== null && !isNaN(r.csat));
-        if(!allR.length) return {l:'Avg CSAT',v:'No data',s:'',c:''};
-        const csatR = allR.filter(r => Number(r.csat) >= 4);
-        const dsatR = allR.filter(r => Number(r.csat) <= 3);
-        // Rule 0: Fraud/Spam & unresponsive customers dropped entirely (matches
-        // the CSAT & DSAT tab's engine).
-        const d0 = dsatR.filter(r => {
-          const n = String(r.disposition||'').toLowerCase().replace(/[^a-z0-9]/g,'');
-          return n!=='fraudspam' && n!=='informationnotprovided';
-        });
-        const d1 = d0.filter(r => r.isAgentHandled !== false);
-        // Rule 2: disposition is no longer required to count a DSAT (matches
-        // the CSAT & DSAT tab's engine) — Flowcall exports sometimes drop the
-        // disposition column, and that should never zero out real DSATs.
-        const d2 = d1;
-        const d3 = d2.filter(r => {
-          if(r.csatSubmittedAt && r.resolvedAt) return (r.csatSubmittedAt - r.resolvedAt)/3600000 <= 6;
-          if(r.resMin) return Number(r.resMin) <= 360;
-          return true;
-        });
-        const ds = {};
-        const d4 = d3.slice().sort((a,b)=>(a.startDT?a.startDT.getTime():0)-(b.startDT?b.startDT.getTime():0)).filter(r=>{
-          if(!r.phone||!r.startDT) return true;
-          const disp = r.disposition&&r.disposition.trim()!==''?r.disposition.trim():null;
-          const key = r.phone+'__'+(disp||('tid_'+String(r.ticketId||r.phone)));
-          const ts = r.startDT.getTime();
-          if(ds[key]!==undefined&&(ts-ds[key])<=2592000000) return false;
-          ds[key]=ts; return true;
-        });
-        const combined = [...csatR, ...d4];
+        const {allRated, cleanCsats, cleanDsats} = cleanCsatDsat(wa);
+        if(!allRated.length) return {l:'Avg CSAT',v:'No data',s:'',c:''};
+        const dsatRaw = allRated.filter(r => Number(r.csat) <= 3).length;
+        const combined = [...cleanCsats, ...cleanDsats];
         const avgV = combined.length ? combined.reduce((a,r)=>a+Number(r.csat),0)/combined.length : 0;
-        const removed = dsatR.length - d4.length;
+        const removedCount = dsatRaw - cleanDsats.length;
         return {l:'Avg CSAT', v:combined.length?avgV.toFixed(1)+'/5':'No data',
-                s:`${csatR.length} CSAT · ${d4.length} DSAT · ${removed} removed`,
+                s:`${cleanCsats.length} CSAT · ${cleanDsats.length} DSAT · ${removedCount} removed`,
                 c:avgV>=4?'green':avgV>=3?'amber':'red'};
       })(),
       (()=>{
@@ -2687,81 +2744,9 @@ document.getElementById('ai-survey-body').innerHTML = `
   if(name==='csat'){
 
     // ── FULL CLEANING ENGINE ─────────────────────────────────────────────────
-    const allRated = wa.filter(r => r.csat !== null && !isNaN(r.csat));
+    const {allRated, cleanCsats, cleanDsats, removed} = cleanCsatDsat(wa);
     document.getElementById('csat-warn').style.display = allRated.length ? 'none' : 'block';
     if(!allRated.length){ document.getElementById('kpi-csat').innerHTML=''; return; }
-
-    const removed = { fraudSpam:[], botDsat:[], noDisp:[], lateDsat:[], repeatDsat:[], recovered:[] };
-
-    // CSAT (4-5) — completely untouched
-    const cleanCsats = allRated.filter(r => Number(r.csat) >= 4);
-
-    // DSAT (1-3) — apply all rules
-    const allDsats = allRated.filter(r => Number(r.csat) <= 3);
-
-    // Rule 0: Fraud/Spam & unresponsive customers ("Fraud Spam", "Information
-    // NotProvided") aren't genuine dissatisfaction — the customer either never
-    // engaged or is a bad-faith/spam contact — so these are dropped entirely
-    // before any other rule runs, and tracked separately for visibility.
-    function isFraudOrUnresponsive(disp){
-      const n = String(disp||'').toLowerCase().replace(/[^a-z0-9]/g,'');
-      return n==='fraudspam' || n==='informationnotprovided';
-    }
-    const dsat_fraud = allDsats.filter(r => {
-      if(isFraudOrUnresponsive(r.disposition)){
-        removed.fraudSpam.push(r); return false;
-      }
-      return true;
-    });
-
-    // Rule 1: Resolved by Agent only — remove bot/AI DSATs
-    const dsat_agent = dsat_fraud.filter(r => {
-      if(r.isAgentHandled === false){
-        removed.botDsat.push(r); return false;
-      }
-      return true;
-    });
-
-    // Rule 2 (updated): disposition is no longer required to count a DSAT.
-    // Flowcall's export sometimes drops the disposition column entirely, and
-    // that should never zero out real DSATs. A DSAT counts as long as it's
-    // tagged to a real agent (Rule 1 already handles the bot filter).
-    // We still track how many are missing disposition, purely for visibility —
-    // they show up as "No Disposition" in the breakdown table, not dropped.
-    const dsat_disp = dsat_agent.filter(r => {
-      const hasDisp = r.disposition && String(r.disposition).trim() !== '';
-      if(!hasDisp){ removed.noDisp.push(r); }
-      return true;
-    });
-
-    // Rule 3: Submitted >6h after Resolved At → drop
-    const dsat_time = dsat_disp.filter(r => {
-      let gapHours = null;
-      if(r.csatSubmittedAt && r.resolvedAt)
-        gapHours = (r.csatSubmittedAt - r.resolvedAt) / 3600000;
-      else if(r.resMin) gapHours = r.resMin / 60;
-      if(gapHours !== null && gapHours > 6){
-        removed.lateDsat.push({...r, _gapHours: gapHours}); return false;
-      }
-      return true;
-    });
-
-    // Rule 4: 30d dedup — same phone + same disposition, keep first
-    const dsat_sorted = dsat_time.slice().sort((a,b) =>
-      (a.startDT ? a.startDT.getTime() : 0) - (b.startDT ? b.startDT.getTime() : 0)
-    );
-    const dsatSeen = {};
-    const cleanDsats = dsat_sorted.filter(r => {
-      if(!r.phone || !r.startDT) return true;
-      const disp = r.disposition && r.disposition.trim() !== '' ? r.disposition.trim() : null;
-      const key = r.phone + '__' + (disp || ('tid_' + String(r.ticketId || r.phone)));
-      const ts = r.startDT.getTime();
-      const windowMs = 30 * 24 * 60 * 60 * 1000;
-      if(dsatSeen[key] !== undefined && (ts - dsatSeen[key]) <= windowMs){
-        removed.repeatDsat.push(r); return false;
-      }
-      dsatSeen[key] = ts; return true;
-    });
 
     const finalRows = [...cleanCsats, ...cleanDsats];
 
@@ -2769,7 +2754,7 @@ document.getElementById('ai-survey-body').innerHTML = `
     const csatGood = finalRows.filter(r => Number(r.csat) >= 4).length;
     const csatBad  = finalRows.filter(r => Number(r.csat) <= 3).length;
     const avgScore = finalRows.length ? finalRows.reduce((a,r) => a + Number(r.csat), 0) / finalRows.length : 0;
-    const totalRemoved = removed.fraudSpam.length + removed.botDsat.length + removed.lateDsat.length + removed.repeatDsat.length;
+    const totalRemoved = removed.dupTicket.length + removed.fraudSpam.length + removed.botDsat.length + removed.lateDsat.length + removed.repeatDsat.length;
 
     document.getElementById('kpi-csat').innerHTML=[
       {l:'Surveyed',v:finalRows.length,s:`${allRated.length} raw · ${totalRemoved} cleaned`,c:''},
@@ -2891,10 +2876,15 @@ document.getElementById('ai-survey-body').innerHTML = `
           <div style="font-size:24px;font-weight:900;color:#166534">${allRated.length}</div>
           <div style="font-size:10px;color:#4ade80">All rated rows from AA+TKT join</div>
         </div>
+        <div style="background:#eef2ff;border:1px solid #a5b4fc;border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:11px;color:#3730a3;font-weight:700">DUPLICATE TICKET ROWS</div>
+          <div style="font-size:24px;font-weight:900;color:#3730a3">${removed.dupTicket.length}</div>
+          <div style="font-size:10px;color:#818cf8">Same Ticket ID, multiple AA rows (transfers)</div>
+        </div>
         <div style="background:#fdf2f8;border:1px solid #f9a8d4;border-radius:10px;padding:12px;text-align:center">
           <div style="font-size:11px;color:#9d174d;font-weight:700">FRAUD/SPAM &amp; UNRESPONSIVE</div>
           <div style="font-size:24px;font-weight:900;color:#9d174d">${removed.fraudSpam.length}</div>
-          <div style="font-size:10px;color:#ec4899">Tagged Fraud Spam / Information NotProvided</div>
+          <div style="font-size:10px;color:#ec4899">Tagged Fraud Spam / Spam / Information NotProvided</div>
         </div>
         <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:12px;text-align:center">
           <div style="font-size:11px;color:#991b1b;font-weight:700">BOT DSAT</div>
@@ -2914,7 +2904,7 @@ document.getElementById('ai-survey-body').innerHTML = `
         <div style="background:#faf5ff;border:1px solid #d8b4fe;border-radius:10px;padding:12px;text-align:center">
           <div style="font-size:11px;color:#6b21a8;font-weight:700">REPEAT DSAT</div>
           <div style="font-size:24px;font-weight:900;color:#6b21a8">${removed.repeatDsat.length}</div>
-          <div style="font-size:10px;color:#c084fc">Same issue within 30 days</div>
+          <div style="font-size:10px;color:#c084fc">Same customer, any issue, within 30 days</div>
         </div>
         <div style="background:#f8fafc;border:2px solid #3b82f6;border-radius:10px;padding:12px;text-align:center">
           <div style="font-size:11px;color:#1d4ed8;font-weight:700">FINAL COUNT</div>
@@ -2922,6 +2912,17 @@ document.getElementById('ai-survey-body').innerHTML = `
           <div style="font-size:10px;color:#3b82f6">${cleanCsats.length} CSAT + ${cleanDsats.length} DSAT</div>
         </div>
       </div>
+      ${removed.dupTicket.length ? `
+      <div style="margin-top:8px">
+        <div style="font-size:12px;font-weight:700;color:#3730a3;margin-bottom:6px">🎫 Duplicate Ticket ID rows removed (same ticket logged twice in Agent Activity):</div>
+        <table class="table-standard"><thead><tr><th>Ticket</th><th>Agent</th><th>Phone</th><th>Disposition</th><th>Rating</th></tr></thead>
+        <tbody>${removed.dupTicket.map(r=>`<tr>
+          <td>${r.ticketId}</td><td>${r.agent}</td>
+          <td>${r.phone?r.phone.slice(-4).padStart(10,'*'):'-'}</td>
+          <td style="font-size:10px">${r.disposition||'-'}</td>
+          <td><span class="badge ${Number(r.csat)<=3?'br':'bg'}">${r.csat} Star</span></td>
+        </tr>`).join('')}</tbody></table>
+      </div>` : ''}
       ${removed.fraudSpam.length ? `
       <div style="margin-top:8px">
         <div style="font-size:12px;font-weight:700;color:#9d174d;margin-bottom:6px">🚫 Fraud/Spam &amp; unresponsive DSATs removed:</div>
@@ -2948,7 +2949,7 @@ document.getElementById('ai-survey-body').innerHTML = `
       </div>` : ''}
       ${removed.repeatDsat.length ? `
       <div style="margin-top:12px">
-        <div style="font-size:12px;font-weight:700;color:#6b21a8;margin-bottom:6px">🔁 Repeat DSATs removed (same issue within 30 days):</div>
+        <div style="font-size:12px;font-weight:700;color:#6b21a8;margin-bottom:6px">🔁 Repeat DSATs removed (same customer, any issue, within 30 days):</div>
         <table class="table-standard"><thead><tr><th>Ticket</th><th>Agent</th><th>Phone</th><th>Disposition</th><th>Rating</th></tr></thead>
         <tbody>${removed.repeatDsat.map(r=>`<tr>
           <td>${r.ticketId}</td><td>${r.agent}</td>
@@ -3544,47 +3545,8 @@ function renderMonthlyPerformance(){
 
 
 // ── CSAT CALCULATION ─────────────────────────────────────────────────────────
-// CSAT (4-5): all rows with rating ≥4, no filters whatsoever
-// DSAT (1-3): bot filter + no-disposition drop + >6h drop + 30d dedup
-
-const allRatedRows = agentRows.filter(r => r.csat !== null && r.csat !== undefined && !isNaN(r.csat));
-
-// CSAT — untouched, all count
-const csatRows_m = allRatedRows.filter(r => Number(r.csat) >= 4);
-
-// DSAT — apply rules
-const dsatRows_m = allRatedRows.filter(r => Number(r.csat) <= 3);
-
-// Rule 1: Resolved by Agent only (remove bot/AI resolved DSATs)
-const dsat_agentOnly = dsatRows_m.filter(r => r.isAgentHandled !== false);
-
-// Rule 2: No disposition → drop
-const dsat_pre = dsat_agentOnly.filter(r => r.disposition && String(r.disposition).trim() !== '');
-
-// Rule 3: Submitted >6h after Resolved At → drop
-const dsat_r1 = dsat_pre.filter(r => {
-  if(r.csatSubmittedAt && r.resolvedAt){
-    return (r.csatSubmittedAt - r.resolvedAt) / 3600000 <= 6;
-  }
-  if(r.resMin && Number(r.resMin) > 360) return false;
-  return true;
-});
-
-// Rule 4: 30d dedup — same phone + same disposition, keep first
-const dsat_sorted = dsat_r1.slice().sort((a,b) =>
-  (a.startDT ? a.startDT.getTime() : 0) - (b.startDT ? b.startDT.getTime() : 0)
-);
-const dsatSeen = {};
-const dsat_final = dsat_sorted.filter(r => {
-  if(!r.phone || !r.startDT) return true;
-  const disp = r.disposition && String(r.disposition).trim() !== '' ? String(r.disposition).trim() : null;
-  const key = r.phone + '__' + (disp || ('tid_' + String(r.ticketId || r.phone)));
-  const ts = r.startDT.getTime();
-  const windowMs = 30 * 24 * 60 * 60 * 1000;
-  if(dsatSeen[key] !== undefined && (ts - dsatSeen[key]) <= windowMs) return false;
-  dsatSeen[key] = ts;
-  return true;
-});
+const {allRated: allRatedRows, cleanCsats: csatRows_m, cleanDsats: dsat_final, removed: removedM} = cleanCsatDsat(agentRows);
+const dsatRows_m = agentRows.filter(r => r.csat !== null && !isNaN(r.csat) && Number(r.csat) <= 3);
 
 // Final numbers
 const totalCsatM      = csatRows_m.length;
