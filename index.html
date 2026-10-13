@@ -1091,7 +1091,7 @@ to{transform:rotate(360deg)}
   </div>
   <div class="card">
     <h3>CSAT & DSAT by agent — detailed</h3>
-    <table class="table-standard"><thead><tr><th>Agent</th><th>Rated</th><th>CSAT (4-5)</th><th>CSAT %</th><th>DSAT (1-3)</th><th>DSAT %</th><th>Avg Score</th><th>5 Star</th><th>Rating</th></tr></thead>
+    <table class="table-standard"><thead><tr><th>Agent</th><th>Total Chats</th><th>Rated</th><th>CSAT (4-5)</th><th>CSAT %</th><th>DSAT (1-3)</th><th>DSAT %</th><th>Avg Score</th><th>5 Star</th><th>Rating</th></tr></thead>
     <tbody id="csat-agent-tbody"></tbody></table>
   </div>
   <div class="card">
@@ -2779,12 +2779,13 @@ document.getElementById('ai-survey-body').innerHTML = `
     // ── AGENT TABLE (using cleaned rows) ─────────────────────────────────────
     document.getElementById('csat-agent-tbody').innerHTML = AGENTS.map(a => {
       const ar = finalRows.filter(r => r.agent === a);
-      if(!ar.length) return `<tr><td><span class="dot" style="background:${agC(a)}"></span>${a}</td><td colspan="8" style="color:#ccc">No CSAT data</td></tr>`;
+      const totalChats=wa.filter(r=>r.agent===a).length;
+      if(!ar.length) return `<tr><td><span class="dot" style="background:${agC(a)}"></span>${a}</td><td>${totalChats}</td><td colspan="9" style="color:#ccc">No CSAT data</td></tr>`;
       const good=ar.filter(r=>Number(r.csat)>=4).length, bad=ar.filter(r=>Number(r.csat)<=3).length;
       const avgS=ar.reduce((a,r)=>a+Number(r.csat),0)/ar.length;
       const five=ar.filter(r=>Number(r.csat)===5).length;
       const cP=ar.length?good/ar.length*100:0, dP=ar.length?bad/ar.length*100:0;
-      return `<tr><td><span class="dot" style="background:${agC(a)}"></span><strong>${a}</strong></td><td>${ar.length}</td><td style="color:#16a34a;font-weight:700">${good}</td><td><span class="badge bg">${cP.toFixed(1)}%</span></td><td style="color:#dc2626;font-weight:700">${bad}</td><td><span class="badge ${dP>30?'br':dP>15?'ba':'bg'}">${dP.toFixed(1)}%</span></td><td style="font-weight:700;color:${avgS>=4?'#16a34a':avgS>=3?'#d97706':'#dc2626'}">${avgS.toFixed(1)}</td><td>${five}</td><td><span class="badge ${avgS>=4.5?'bg':avgS>=4?'bg':avgS>=3?'ba':'br'}">${avgS>=4?'Good':avgS>=3?'Average':'Poor'}</span></td></tr>`;
+      return `<tr><td><span class="dot" style="background:${agC(a)}"></span><strong>${a}</strong></td><td style="font-weight:700">${totalChats}</td><td>${ar.length}</td><td style="color:#16a34a;font-weight:700">${good}</td><td><span class="badge bg">${cP.toFixed(1)}%</span></td><td style="color:#dc2626;font-weight:700">${bad}</td><td><span class="badge ${dP>30?'br':dP>15?'ba':'bg'}">${dP.toFixed(1)}%</span></td><td style="font-weight:700;color:${avgS>=4?'#16a34a':avgS>=3?'#d97706':'#dc2626'}">${avgS.toFixed(1)}</td><td>${five}</td><td><span class="badge ${avgS>=4.5?'bg':avgS>=4?'bg':avgS>=3?'ba':'br'}">${avgS>=4?'Good':avgS>=3?'Average':'Poor'}</span></td></tr>`;
     }).join('');
 
     // ── 7-DAY TREND (using cleaned rows) ────────────────────────────────────
